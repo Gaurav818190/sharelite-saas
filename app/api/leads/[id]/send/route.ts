@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getLead, requireAuthenticatedUser } from "@/lib/supabase-db";
+import { checkRateLimit, getClientKey, rateLimitResponse } from "@/lib/rate-limit";
 import { consumeEmailSend } from "@/lib/monetization";
 import { EmailProviderRateLimitError, EmailProviderTemporaryError, EmailProviderUnavailableError, isEmailProviderConfigured, sendEmail } from "@/lib/email-sending";
 
@@ -23,6 +24,8 @@ function parseInput(value: unknown): SendInput | null {
 }
 
 export async function POST(request: Request, context: Context) {
+  const rateLimit = checkRateLimit(getClientKey(request, "lead-send"), 20);
+  if (!rateLimit.allowed) return rateLimitResponse(rateLimit);
   try {
     const input = parseInput(await request.json().catch(() => null));
     if (!input) return NextResponse.json({ error: "A valid recipient, subject, and message are required." }, { status: 400 });
