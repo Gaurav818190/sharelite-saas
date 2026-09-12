@@ -1,0 +1,6 @@
+$path = 'app/DashboardClient.tsx'
+$content = [System.IO.File]::ReadAllText($path)
+$content = [regex]::Replace($content, '<span className="px-2\.5 py-1 rounded bg-cyan-500 text-white">7D</span><span className="px-2\.5 py-1 rounded text-slate-400">30D</span><span className="px-2\.5 py-1 rounded text-slate-400">3M</span>', '{([ ["7d", "7D"], ["30d", "30D"], ["3m", "3M"] ] as const).map(([value, label]) => <button type="button" key={value} onClick={() => setAnalyticsRange(value)} className={`px-2.5 py-1 rounded ${analyticsRange === value ? "bg-cyan-500 text-white" : "text-slate-400"}`}>{label}</button>)}')
+$content = [regex]::Replace($content, '\{\[35, 55, 45, 75, 65, 88, 72, 98\]\.map\(\(value, index\) => <div key=\{index\} className="w-8 bg-gradient-to-t from-cyan-600 to-blue-500 rounded-t-lg transition-all hover:opacity-80" style=\{\{ height: `\$\{value\}%` \}\} />\)\}', '{graphPoints.map((point) => <div key={point.date} title={`${point.date}: ${point.leads} leads, ${point.campaigns} campaigns`} className="flex-1 max-w-8 bg-gradient-to-t from-cyan-600 to-blue-500 rounded-t-lg transition-all hover:opacity-80" style={{ height: `${((point.leads + point.campaigns) / graphMax) * 100}%` }} />)}')
+$content = $content.Replace('12 : 34 : 56', '{countdown}')
+[System.IO.File]::WriteAllText($path, $content)
