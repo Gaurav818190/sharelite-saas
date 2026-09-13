@@ -4,6 +4,8 @@ export type Profile = {
   id: string;
   email: string;
   name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -11,6 +13,30 @@ export type Profile = {
 export type LeadStatus = "new" | "valid" | "contacted" | "converted";
 
 export type EmailValidationStatus = "unknown" | "valid" | "invalid" | "risky" | "disposable" | "error";
+
+export type ReviewStatus = "draft" | "published";
+
+export type Review = {
+  id: string;
+  user_id: string;
+  customer_name: string;
+  customer_email: string | null;
+  rating: number;
+  title: string;
+  content: string;
+  status: ReviewStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReviewInput = {
+  customer_name: string;
+  customer_email?: string | null;
+  rating: number;
+  title: string;
+  content: string;
+  status?: ReviewStatus;
+};
 
 export type Lead = {
   id: string;
@@ -118,6 +144,41 @@ export async function updateLeadValidation(accessToken: string, leadId: string, 
 
 export async function deleteLead(accessToken: string, leadId: string) {
   const rows = await supabaseRequest<Lead[]>(accessToken, `/leads?id=eq.${encodeURIComponent(leadId)}&select=id`, {
+    method: "DELETE",
+    headers: { Prefer: "return=representation" },
+  });
+  return rows.length > 0;
+}
+
+export async function listReviews(accessToken: string) {
+  return supabaseRequest<Review[]>(accessToken, "/reviews?select=*&order=created_at.desc");
+}
+
+export async function getReview(accessToken: string, reviewId: string) {
+  const rows = await supabaseRequest<Review[]>(accessToken, `/reviews?id=eq.${encodeURIComponent(reviewId)}&select=*`);
+  return rows[0] ?? null;
+}
+
+export async function createReview(accessToken: string, userId: string, input: ReviewInput) {
+  const rows = await supabaseRequest<Review[]>(accessToken, "/reviews?select=*", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ ...input, user_id: userId }),
+  });
+  return rows[0];
+}
+
+export async function updateReview(accessToken: string, reviewId: string, input: Partial<ReviewInput>) {
+  const rows = await supabaseRequest<Review[]>(accessToken, `/reviews?id=eq.${encodeURIComponent(reviewId)}&select=*`, {
+    method: "PATCH",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify(input),
+  });
+  return rows[0] ?? null;
+}
+
+export async function deleteReview(accessToken: string, reviewId: string) {
+  const rows = await supabaseRequest<{ id: string }[]>(accessToken, `/reviews?id=eq.${encodeURIComponent(reviewId)}&select=id`, {
     method: "DELETE",
     headers: { Prefer: "return=representation" },
   });

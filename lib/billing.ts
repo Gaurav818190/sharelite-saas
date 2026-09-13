@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getConfig } from "@/lib/supabase-auth";
+import { getServiceRoleConfig } from "@/lib/supabase-auth";
 import type { Plan, SubscriptionStatus } from "@/lib/monetization";
 
 export class BillingUnavailableError extends Error {
@@ -70,7 +70,7 @@ export function subscriptionEventData(event: BillingEvent) {
 }
 
 export async function applySubscriptionEvent(event: ReturnType<typeof subscriptionEventData>) {
-  const { url, key } = getConfig();
+  const { url, key } = getServiceRoleConfig();
   const response = await fetch(`${url}/rest/v1/rpc/apply_billing_subscription_event`, {
     method: "POST",
     headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },

@@ -6,10 +6,12 @@ export async function POST(request: Request) {
   const rateLimit = checkRateLimit(getClientKey(request, "auth-signup"), 5);
   if (!rateLimit.allowed) return rateLimitResponse(rateLimit);
   const body = await request.json().catch(() => null);
+  const firstName = typeof body?.firstName === "string" ? body.firstName.trim() : "";
+  const lastName = typeof body?.lastName === "string" ? body.lastName.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
-  if (!email || password.length < 8) {
-    return NextResponse.json({ error: "A valid email and password of at least 8 characters are required." }, { status: 400 });
+  if (!firstName || firstName.length > 100 || lastName.length > 100 || !email || password.length < 8) {
+    return NextResponse.json({ error: "First name, valid email, and password of at least 8 characters are required." }, { status: 400 });
   }
 
   try {
@@ -17,7 +19,7 @@ export async function POST(request: Request) {
     const response = await fetch(`${url}/auth/v1/signup`, {
       method: "POST",
       headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, data: { first_name: firstName, last_name: lastName, name: firstName } }),
       cache: "no-store",
     });
     const payload = await response.json().catch(() => null);

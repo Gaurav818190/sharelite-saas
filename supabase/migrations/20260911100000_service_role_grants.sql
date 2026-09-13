@@ -10,3 +10,4 @@ grant select, insert, update, delete on public.campaigns to service_role;
 grant select, insert, update, delete on public.ai_usage to service_role;
 grant select, insert, update, delete on public.email_usage to service_role;
 grant select, insert, update, delete on public.campaign_deliveries to service_role;
+-- Reviews are granted in the Reviews migration so that migration is independently deployable.

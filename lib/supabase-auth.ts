@@ -3,13 +3,22 @@ import { cookies } from "next/headers";
 const accessCookie = "sharelite-access-token";
 const refreshCookie = "sharelite-refresh-token";
 
-function getConfig() {
+function baseUrl() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    throw new Error("Supabase authentication is not configured.");
-  }
-  return { url: url.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, ""), key };
+  if (!url) throw new Error("Supabase authentication is not configured.");
+  return url.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
+}
+
+function getConfig() {
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key) throw new Error("Supabase authentication is not configured.");
+  return { url: baseUrl(), key };
+}
+
+export function getServiceRoleConfig() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error("Supabase service operations are not configured.");
+  return { url: baseUrl(), key };
 }
 
 export type AuthUser = { id: string; email?: string };
