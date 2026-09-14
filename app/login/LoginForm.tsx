@@ -34,10 +34,8 @@ export function LoginForm() {
     <main className="min-h-screen bg-[#090d16] text-white flex items-center justify-center px-6">
       <form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-8">
         <h1 className="text-3xl font-black">Sign in to ShareLite</h1>
-        <p className="mt-2 text-sm text-slate-400">Use your ShareLite account credentials.</p>
+        <p className="mt-2 text-sm text-slate-400">Use your email and password to continue.</p>
         {oauthError && <p role="alert" className="mt-4 text-sm text-rose-400">Social sign-in could not be completed. Try again or use email.</p>}
-        <AuthProviderButtons />
-        <div className="my-5 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-white/10" />or email<span className="h-px flex-1 bg-white/10" /></div>
         <label className="mt-8 block text-sm font-bold">Email<input name="email" type="email" required autoComplete="email" className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4" /></label>
         <label className="mt-4 block text-sm font-bold">Password<input name="password" type="password" required minLength={8} autoComplete="current-password" className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4" /></label>
         {error && <p role="alert" className="mt-4 text-sm text-rose-400">{error}</p>}

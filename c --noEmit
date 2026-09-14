@@ -1,0 +1,8 @@
+warning: in the working copy of 'app/DashboardClient.tsx', LF will be replaced by CRLF the next time Git touches it
+ app/AuthProviderButtons.tsx  |  12 [32m+[m[31m---[m
+ app/DashboardClient.tsx      |  17 [32m+++[m[31m--[m
+ app/api/auth/signup/route.ts | 163 [32m++++++++++++++++++++++++++++++++++++++[m[31m-----[m
+ app/login/LoginForm.tsx      |   4 [32m+[m[31m-[m
+ app/signup/SignupForm.tsx    | 128 [32m+++++++++++++++++++++++++++++++[m[31m--[m
+ lib/supabase-auth.ts         |   2 [32m+[m
+ 6 files changed, 283 insertions(+), 43 deletions(-)

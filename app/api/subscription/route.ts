@@ -9,6 +9,7 @@ export async function GET() {
     const { user, accessToken } = await requireAuthenticatedUser();
     const [subscription, entitlements] = await Promise.all([getSubscription(accessToken, user.id), getCurrentEntitlements(accessToken, user.id)]);
     const trialEndsAt = subscription.current_period_end;
+    
     return NextResponse.json({ subscription, trialEndsAt, entitlements });
   } catch (error) {
     const unauthenticated = error instanceof Error && error.message === "UNAUTHENTICATED";
