@@ -37,6 +37,7 @@ function verifySignature(
   secret: string,
 ) {
   const parts = signature.split(",");
+
   const timestamp = parts
     .find((part) => part.startsWith("t="))
     ?.slice(2);
@@ -60,7 +61,10 @@ function verifySignature(
   const isValid = signatures.some(
     (value) =>
       value.length === expected.length &&
-      timingSafeEqual(Buffer.from(value), Buffer.from(expected)),
+      timingSafeEqual(
+        Buffer.from(value),
+        Buffer.from(expected),
+      ),
   );
 
   if (!isValid) {
@@ -113,6 +117,13 @@ function planFromPrice(priceId: string | null): Plan | null {
     priceId === process.env.STRIPE_BUSINESS_PRICE_ID
   ) {
     return "business";
+  }
+
+  if (
+    priceId &&
+    priceId === process.env.STRIPE_ENTERPRISE_PRICE_ID
+  ) {
+    return "enterprise";
   }
 
   return null;
@@ -229,7 +240,15 @@ function getPriceId(plan: Exclude<Plan, "free">) {
     return process.env.STRIPE_PRO_PRICE_ID;
   }
 
-  return process.env.STRIPE_BUSINESS_PRICE_ID;
+  if (plan === "business") {
+    return process.env.STRIPE_BUSINESS_PRICE_ID;
+  }
+
+  if (plan === "enterprise") {
+    return process.env.STRIPE_ENTERPRISE_PRICE_ID;
+  }
+
+  return undefined;
 }
 
 export async function createCheckoutSession(

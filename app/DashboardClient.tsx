@@ -491,6 +491,28 @@ export default function DashboardClient({
     }
   }
 }
+
+    function downloadCsvTemplate() {
+    const csvContent =
+      "name,email,company,website\n" +
+      "John Doe,john@example.com,Example Company,https://example.com\n";
+
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "sharelite-leads-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  }
+
   async function validateLead(id: string) {
     setLeadError(null);
 
@@ -858,6 +880,19 @@ export default function DashboardClient({
     >
       {importing ? "Importing..." : "Import CSV"}
     </label>
+    <button
+  type="button"
+  onClick={downloadCsvTemplate}
+  className={`rounded-xl border px-4 py-3 text-xs font-black transition ${
+    dark
+      ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
+      : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+  }`}
+>
+  Download Template
+</button>
+
+
   </div>
 </div>
               <form

@@ -1,60 +1,68 @@
 import Link from "next/link";
+
 console.log("PLANS PAGE LOADED");
+
 const plans = [
   {
-    name: "Free",
-    price: "₹0",
-    period: "5-day free trial",
-    description: "Try ShareLite and explore the basics.",
+    name: "Free Trial",
+    price: "$0",
+    period: "5 Days",
+    description: "Test the power of ShareLite before you upgrade.",
     features: [
-      "Basic lead management",
-      "Limited lead records",
-      "Basic email validation",
-      "Limited AI messages",
+      "250 Total Email sending credits",
+      "Connect up to 1 Email Inbox",
+      "Basic Lead Search (50 Leads)",
+      "Core campaign tracking & analytics",
     ],
     button: "Start Free Trial",
     featured: false,
   },
   {
-    name: "Starter",
-    price: "₹499",
-    period: "per month",
-    description: "For individuals starting outreach.",
-    features: [
-      "More leads",
-      "Email validation",
-      "AI message generation",
-      "Basic campaign tools",
-    ],
-    button: "Choose Starter",
-    featured: false,
-  },
-  {
     name: "Pro",
-    price: "₹1,499",
-    period: "per month",
-    description: "For growing outreach businesses.",
+    price: "$29",
+    period: "/ month",
+    description:
+      "Perfect for freelancers and solo founders starting outreach.",
     features: [
-      "Higher lead limits",
-      "Advanced AI personalization",
-      "Campaign analytics",
-      "Priority features",
+      "7,500 Automated Email sends / month",
+      "Connect up to 3 Email Inboxes",
+      "2,000 High-quality lead records / month",
+      "Standard email validation & cleanup",
+      "Core AI sequence writer",
     ],
     button: "Choose Pro",
     featured: true,
   },
   {
     name: "Business",
-    price: "₹2,499",
-    period: "per month",
-    description: "For teams and serious outreach.",
+    price: "$49",
+    period: "/ month",
+    description: "Designed for growing agencies and sales teams.",
     features: [
-      "Highest lead limits",
-      "Advanced campaign tools",
-      "Team-ready workspace",
-      "Premium support features",
+      "25,000 Automated Email sends / month",
+      "Connect up to 10 Email Inboxes",
+      "5,000 High-quality lead records / month",
+      "Advanced AI Personalization (Icebreakers)",
+      "Team Workspace (Up to 3 member seats)",
+      "Priority chat support",
     ],
     button: "Choose Business",
+    featured: false,
+  },
+  {
+    name: "Enterprise",
+    price: "$109",
+    period: "/ month",
+    description: "For high-volume outreach and large-scale corporations.",
+    features: [
+      "100,000 Automated Email sends / month",
+      "Unlimited Email Inboxes connection",
+      "20,000 High-quality lead records / month",
+      "Full Advanced Campaign tools & A/B testing",
+      "Unlimited team member seats",
+      "Dedicated 24/7 Account Manager",
+    ],
+    button: "Choose Enterprise",
     featured: false,
   },
 ];
@@ -115,6 +123,7 @@ export default function PlansPage() {
 
               <div className="mt-6">
                 <span className="text-4xl font-black">{plan.price}</span>
+
                 <span className="ml-2 text-xs text-slate-400">
                   {plan.period}
                 </span>

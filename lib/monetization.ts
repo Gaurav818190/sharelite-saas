@@ -4,7 +4,12 @@ import type { Lead } from "@/lib/supabase-db";
 import { listCampaigns, listTemplates } from "@/lib/supabase-workspaces";
 import type { Campaign, Template } from "@/lib/supabase-workspaces";
 
-export type Plan = "free" | "starter" | "pro" | "business";
+export type Plan =
+  | "free"
+  | "starter"
+  | "pro"
+  | "business"
+  | "enterprise";
 
 export type SubscriptionStatus =
   | "active"
@@ -87,15 +92,33 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
     },
   },
 
-  business: {
+    business: {
     label: "Business",
     limits: {
-      leads: 50000,
+      leads: 5000,
       campaigns: 200,
       templates: 500,
       validation: 25000,
       aiUsage: 2000,
-      emailSends: 10000,
+      emailSends: 25000,
+    },
+    features: {
+      advancedAnalytics: true,
+      bulkOutreach: true,
+      automation: true,
+      aiUsage: true,
+    },
+  },
+
+  enterprise: {
+    label: "Enterprise",
+    limits: {
+      leads: 20000,
+      campaigns: 500,
+      templates: 1000,
+      validation: 100000,
+      aiUsage: 10000,
+      emailSends: 100000,
     },
     features: {
       advancedAnalytics: true,
@@ -105,7 +128,6 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
     },
   },
 };
-
 export type Subscription = {
   id: string;
   user_id: string;
