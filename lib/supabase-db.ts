@@ -116,6 +116,33 @@ export async function getLead(accessToken: string, leadId: string) {
   return rows[0] ?? null;
 }
 
+export async function createLeads(
+  accessToken: string,
+  userId: string,
+  inputs: LeadInput[]
+) {
+  if (inputs.length === 0) {
+    return [];
+  }
+
+  return supabaseRequest<Lead[]>(
+    accessToken,
+    "/leads?select=*",
+    {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(
+        inputs.map((input) => ({
+          ...input,
+          user_id: userId,
+        }))
+      ),
+    }
+  );
+}
+
 export async function createLead(accessToken: string, userId: string, input: LeadInput) {
   return supabaseRequest<Lead[]>(accessToken, "/leads?select=*", {
     method: "POST",

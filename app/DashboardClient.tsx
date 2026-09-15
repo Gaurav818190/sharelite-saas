@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+
 import type { AuthUser } from "@/lib/supabase-auth";
+
 import type {
   Lead,
   LeadCounts,
   LeadStatus,
 } from "@/lib/supabase-db";
+
 import WorkspacePanels from "./WorkspacePanels";
 import ReviewsPanel from "./ReviewsPanel";
 
@@ -85,6 +95,9 @@ export default function DashboardClient({
   const [leadForm, setLeadForm] = useState(emptyLead);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [leadError, setLeadError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<string | null>(null);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
   const [pending, setPending] = useState(false);
 
   const [aiMessages, setAiMessages] = useState<Record<string, string>>(
@@ -435,7 +448,49 @@ export default function DashboardClient({
 
     await refreshLeads();
   }
+  async function importCsv(event: React.ChangeEvent<HTMLInputElement>) {
+  const file = event.target.files?.[0];
 
+  if (!file) {
+    return;
+  }
+
+  setImporting(true);
+  setImportSummary(null);
+  setLeadError(null);
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/leads/import", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "CSV import failed.");
+    }
+
+    setImportSummary(
+      `Imported: ${data.imported}, Invalid: ${data.invalid}, Duplicates: ${data.duplicates}, Skipped by limit: ${data.skippedByLimit}`
+    );
+
+    await refreshLeads();
+  } catch (error) {
+    setLeadError(
+      error instanceof Error ? error.message : "CSV import failed."
+    );
+  } finally {
+    setImporting(false);
+
+    if (csvInputRef.current) {
+      csvInputRef.current.value = "";
+    }
+  }
+}
   async function validateLead(id: string) {
     setLeadError(null);
 
@@ -575,36 +630,12 @@ export default function DashboardClient({
             Unlock advanced features, more leads and higher limits.
           </p>
 
-          <select
-            aria-label="Upgrade plan"
-            value={checkoutPlan}
-            onChange={(event) =>
-              setCheckoutPlan(
-                event.target.value as "premium" | "premium_pro"
-              )
-            }
-            className="mt-3 w-full rounded-lg bg-slate-900 px-3 py-2 text-xs"
-          >
-            <option value="premium">Premium</option>
-            <option value="premium_pro">Premium Pro</option>
-          </select>
-
-          <button
-            type="button"
-            onClick={() => void startCheckout()}
-            disabled={checkoutPending}
-            className="mt-2 w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-3 py-3 text-xs font-black text-white disabled:opacity-60"
-          >
-            {checkoutPending
-              ? "Opening checkout..."
-              : "Upgrade Now"}
-          </button>
-
-          {checkoutError && (
-            <p className="mt-2 text-xs text-rose-400">
-              {checkoutError}
-            </p>
-          )}
+         <Link
+   href="/plans"
+   className="block w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-3 text-center text-xs font-black text-white transition hover:scale-[1.02]"
+>
+   View Plans
+ </Link>
         </div>
       </aside>
 
@@ -626,6 +657,12 @@ export default function DashboardClient({
           </button>
 
           <div className="flex items-center gap-3">
+            <Link
+  href="/plans"
+  className="rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-2 text-xs font-black text-white transition hover:scale-[1.02]"
+>
+  Upgrade
+</Link>
             <button
               type="button"
               onClick={() => setDark((value) => !value)}
@@ -779,16 +816,12 @@ export default function DashboardClient({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => void startCheckout()}
-                    disabled={checkoutPending}
-                    className="w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-3 text-xs font-black text-white disabled:opacity-60"
-                  >
-                    {checkoutPending
-                      ? "Opening checkout..."
-                      : "Upgrade Now"}
-                  </button>
+                  <Link
+  href="/plans"
+  className="block w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-3 text-center text-xs font-black text-white transition hover:scale-[1.02]"
+>
+  Upgrade Now
+</Link>
                 </div>
               </div>
             </>
@@ -796,14 +829,37 @@ export default function DashboardClient({
 
           {activeTab === "leads" && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-black">Leads</h2>
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+  <div>
+    <h2 className="text-2xl font-black">Leads</h2>
 
-                <p className="mt-1 text-xs text-slate-400">
-                  Manage your outreach leads.
-                </p>
-              </div>
+    <p className="mt-1 text-xs text-slate-400">
+      Manage your outreach leads.
+    </p>
+  </div>
 
+  <div className="flex flex-wrap items-center gap-2">
+    <input
+      ref={csvInputRef}
+      type="file"
+      accept=".csv,text/csv"
+      onChange={importCsv}
+      className="hidden"
+      id="csv-leads-upload"
+    />
+
+    <label
+      htmlFor="csv-leads-upload"
+      className={`cursor-pointer rounded-xl border px-4 py-3 text-xs font-black transition ${
+        dark
+          ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
+          : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+      } ${importing ? "pointer-events-none opacity-60" : ""}`}
+    >
+      {importing ? "Importing..." : "Import CSV"}
+    </label>
+  </div>
+</div>
               <form
                 onSubmit={submitLead}
                 className={`grid grid-cols-1 gap-3 rounded-2xl border p-5 md:grid-cols-3 ${
@@ -897,7 +953,11 @@ export default function DashboardClient({
                   {leadError}
                 </p>
               )}
-
+              {importSummary && (
+  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+    {importSummary}
+  </div>
+)}
               <div className="space-y-3">
                 {leadRows.length === 0 ? (
                   <div className="rounded-2xl border border-white/10 p-6 text-sm text-slate-400">
