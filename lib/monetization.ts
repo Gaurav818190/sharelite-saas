@@ -15,6 +15,7 @@ export type Plan =
   | "starter"
   | "pro"
   | "business"
+  | "scale"
   | "enterprise";
 
 export type SubscriptionStatus =
@@ -67,7 +68,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
   starter: {
     label: "Starter",
     limits: {
-      leads: 1000,
+      leads: 250,
       campaigns: 10,
       templates: 25,
       validation: 500,
@@ -86,13 +87,13 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
   pro: {
     label: "Pro",
     limits: {
-      leads: 10000,
+      leads: 2500,
       campaigns: 50,
       templates: 100,
       validation: 5000,
       aiUsage: 500,
-      emailSends: 7500,
-      campaignEmails: 500,
+      emailSends: 4000,
+      campaignEmails: 100,
     },
     features: {
       advancedAnalytics: true,
@@ -110,8 +111,27 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       templates: 500,
       validation: 25000,
       aiUsage: 2000,
-      emailSends: 25000,
-      campaignEmails: 1000,
+      emailSends: 20000,
+      campaignEmails: 250,
+    },
+    features: {
+      advancedAnalytics: true,
+      bulkOutreach: true,
+      automation: true,
+      aiUsage: true,
+    },
+  },
+
+  scale: {
+    label: "Scale / Growth",
+    limits: {
+      leads: 10000,
+      campaigns: 350,
+      templates: 750,
+      validation: 35000,
+      aiUsage: 5000,
+      emailSends: 30000,
+      campaignEmails: 500,
     },
     features: {
       advancedAnalytics: true,
@@ -129,8 +149,8 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       templates: 1000,
       validation: 50000,
       aiUsage: 10000,
-      emailSends: 50000,
-      campaignEmails: 1500,
+      emailSends: 40000,
+      campaignEmails: 1000,
     },
     features: {
       advancedAnalytics: true,
@@ -256,15 +276,19 @@ export function getRecommendedPlanForCampaignSize(
     return null;
   }
 
-  if (selectedCount <= 500) {
+  if (selectedCount <= 100) {
     return "pro";
   }
 
-  if (selectedCount <= 1000) {
+  if (selectedCount <= 250) {
     return "business";
   }
 
-  if (selectedCount <= 1500) {
+  if (selectedCount <= 500) {
+    return "scale";
+  }
+
+  if (selectedCount <= 1000) {
     return "enterprise";
   }
 

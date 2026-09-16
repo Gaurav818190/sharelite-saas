@@ -162,38 +162,40 @@ export async function POST(
       pendingLeads.length;
 
     if (selectedCount > campaignLimit) {
-      const recommendedPlan =
-        selectedCount <= 500
-          ? "Pro"
-          : selectedCount <= 1000
-            ? "Business"
-            : selectedCount <= 1500
-              ? "Enterprise"
-              : null;
+  const recommendedPlan =
+    selectedCount <= 250
+      ? "Business"
+      : selectedCount <= 500
+        ? "Scale"
+        : selectedCount <= 1000
+          ? "Enterprise"
+          : null;
 
-      const upgradeMessage =
-        recommendedPlan
-          ? `Upgrade to ${recommendedPlan} to send up to ${
-              recommendedPlan === "Pro"
-                ? 500
-                : recommendedPlan === "Business"
-                  ? 1000
-                  : 1500
-            } emails per campaign.`
-          : "Please split your campaign into batches of 1500 emails or fewer.";
+  const recommendedLimit =
+    recommendedPlan === "Business"
+      ? 250
+      : recommendedPlan === "Scale"
+        ? 500
+        : recommendedPlan === "Enterprise"
+          ? 1000
+          : null;
 
-      return NextResponse.json(
-        {
-          error: `Your ${entitlements.plan} plan allows up to ${campaignLimit} emails per campaign. You selected: ${selectedCount} emails. ${upgradeMessage}`,
-          code: "CAMPAIGN_EMAIL_LIMIT_EXCEEDED",
-          plan: entitlements.plan,
-          allowed: campaignLimit,
-          selected: selectedCount,
-        },
-        { status: 403 },
-      );
-    }
+  const upgradeMessage =
+    recommendedPlan && recommendedLimit
+      ? `Upgrade to ${recommendedPlan} to send up to ${recommendedLimit} emails per campaign.`
+      : "Please split your campaign into batches of 1000 emails or fewer.";
 
+  return NextResponse.json(
+    {
+      error: `Your ${entitlements.plan} plan allows up to ${campaignLimit} emails per campaign. You selected: ${selectedCount} emails. ${upgradeMessage}`,
+      code: "CAMPAIGN_EMAIL_LIMIT_EXCEEDED",
+      plan: entitlements.plan,
+      allowed: campaignLimit,
+      selected: selectedCount,
+    },
+    { status: 403 },
+  );
+}
     const results: Array<{
       leadId: string;
       status: "accepted" | "failed";
