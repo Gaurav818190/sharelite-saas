@@ -1,8 +1,14 @@
 import { getConfig } from "@/lib/supabase-auth";
 import { listLeads } from "@/lib/supabase-db";
 import type { Lead } from "@/lib/supabase-db";
-import { listCampaigns, listTemplates } from "@/lib/supabase-workspaces";
-import type { Campaign, Template } from "@/lib/supabase-workspaces";
+import {
+  listCampaigns,
+  listTemplates,
+} from "@/lib/supabase-workspaces";
+import type {
+  Campaign,
+  Template,
+} from "@/lib/supabase-workspaces";
 
 export type Plan =
   | "free"
@@ -33,6 +39,7 @@ export type PlanConfig = {
     validation: number;
     aiUsage: number;
     emailSends: number;
+    campaignEmails: number;
   };
   features: Record<Feature, boolean>;
 };
@@ -47,6 +54,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       validation: 25,
       aiUsage: 10,
       emailSends: 25,
+      campaignEmails: 25,
     },
     features: {
       advancedAnalytics: false,
@@ -65,6 +73,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       validation: 500,
       aiUsage: 100,
       emailSends: 500,
+      campaignEmails: 100,
     },
     features: {
       advancedAnalytics: true,
@@ -82,7 +91,8 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       templates: 100,
       validation: 5000,
       aiUsage: 500,
-      emailSends: 2500,
+      emailSends: 7500,
+      campaignEmails: 500,
     },
     features: {
       advancedAnalytics: true,
@@ -92,7 +102,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
     },
   },
 
-    business: {
+  business: {
     label: "Business",
     limits: {
       leads: 5000,
@@ -101,6 +111,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       validation: 25000,
       aiUsage: 2000,
       emailSends: 25000,
+      campaignEmails: 1000,
     },
     features: {
       advancedAnalytics: true,
@@ -116,9 +127,10 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       leads: 20000,
       campaigns: 500,
       templates: 1000,
-      validation: 100000,
+      validation: 50000,
       aiUsage: 10000,
-      emailSends: 100000,
+      emailSends: 50000,
+      campaignEmails: 1500,
     },
     features: {
       advancedAnalytics: true,
@@ -128,6 +140,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
     },
   },
 };
+
 export type Subscription = {
   id: string;
   user_id: string;
@@ -174,13 +187,18 @@ async function request<T>(
   if (!response.ok) {
     const body = await response.text();
 
-    console.error("ShareLite Supabase monetization request failed", {
-      path,
-      status: response.status,
-      body: body.slice(0, 1000),
-    });
+    console.error(
+      "ShareLite Supabase monetization request failed",
+      {
+        path,
+        status: response.status,
+        body: body.slice(0, 1000),
+      },
+    );
 
-    throw new Error(`Database request failed (${response.status}).`);
+    throw new Error(
+      `Database request failed (${response.status}).`,
+    );
   }
 
   if (response.status === 204) {
@@ -196,7 +214,9 @@ export async function getSubscription(
 ): Promise<Subscription> {
   const rows = await request<Subscription[]>(
     token,
-    `/subscriptions?user_id=eq.${encodeURIComponent(userId)}&select=*`,
+    `/subscriptions?user_id=eq.${encodeURIComponent(
+      userId,
+    )}&select=*`,
   );
 
   return (
@@ -218,8 +238,37 @@ export function getPlanConfig(plan: Plan) {
   return PLAN_CONFIG[plan];
 }
 
-export function canAccess(plan: Plan, feature: Feature) {
+export function canAccess(
+  plan: Plan,
+  feature: Feature,
+) {
   return PLAN_CONFIG[plan].features[feature];
+}
+
+export function getCampaignEmailLimit(plan: Plan) {
+  return PLAN_CONFIG[plan].limits.campaignEmails;
+}
+
+export function getRecommendedPlanForCampaignSize(
+  selectedCount: number,
+): Plan | null {
+  if (selectedCount <= 25) {
+    return null;
+  }
+
+  if (selectedCount <= 500) {
+    return "pro";
+  }
+
+  if (selectedCount <= 1000) {
+    return "business";
+  }
+
+  if (selectedCount <= 1500) {
+    return "enterprise";
+  }
+
+  return null;
 }
 
 export function getUsage(
@@ -231,7 +280,9 @@ export function getUsage(
     leads: leads.length,
     campaigns: campaigns.length,
     templates: templates.length,
-    validation: leads.filter((lead) => lead.validated_at !== null).length,
+    validation: leads.filter(
+      (lead) => lead.validated_at !== null,
+    ).length,
     aiUsage: 0,
     emailSends: 0,
   };
@@ -241,7 +292,17 @@ async function getCurrentPeriodUsage(
   token: string,
   base: Usage,
 ): Promise<Usage> {
-  const periodStart = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+
+  const periodStart = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      1,
+    ),
+  )
+    .toISOString()
+    .slice(0, 10);
 
   const [aiRows, emailRows] = await Promise.all([
     request<Array<{ generation_count: number }>>(
@@ -268,14 +329,18 @@ export function getEntitlements(
 ) {
   const periodExpired =
     Boolean(subscription.current_period_end) &&
-    new Date(subscription.current_period_end as string).getTime() <= Date.now();
+    new Date(
+      subscription.current_period_end as string,
+    ).getTime() <= Date.now();
 
   const subscriptionActive =
     subscription.status === "active" ||
     subscription.status === "trialing";
 
   const effectivePlan: Plan =
-    !periodExpired && subscriptionActive ? subscription.plan : "free";
+    !periodExpired && subscriptionActive
+      ? subscription.plan
+      : "free";
 
   const config = PLAN_CONFIG[effectivePlan];
 
@@ -287,11 +352,26 @@ export function getEntitlements(
     usage,
 
     remaining: {
-      leads: Math.max(0, config.limits.leads - usage.leads),
-      campaigns: Math.max(0, config.limits.campaigns - usage.campaigns),
-      templates: Math.max(0, config.limits.templates - usage.templates),
-      validation: Math.max(0, config.limits.validation - usage.validation),
-      aiUsage: Math.max(0, config.limits.aiUsage - usage.aiUsage),
+      leads: Math.max(
+        0,
+        config.limits.leads - usage.leads,
+      ),
+      campaigns: Math.max(
+        0,
+        config.limits.campaigns - usage.campaigns,
+      ),
+      templates: Math.max(
+        0,
+        config.limits.templates - usage.templates,
+      ),
+      validation: Math.max(
+        0,
+        config.limits.validation - usage.validation,
+      ),
+      aiUsage: Math.max(
+        0,
+        config.limits.aiUsage - usage.aiUsage,
+      ),
       emailSends: Math.max(
         0,
         config.limits.emailSends - usage.emailSends,
@@ -312,20 +392,38 @@ export async function getCurrentEntitlements(
   token: string,
   userId: string,
 ) {
-  const [subscription, leads, campaigns, templates] = await Promise.all([
+  const [
+    subscription,
+    leads,
+    campaigns,
+    templates,
+  ] = await Promise.all([
     getSubscription(token, userId),
     listLeads(token),
     listCampaigns(token),
     listTemplates(token),
   ]);
 
-  const baseUsage = getUsage(leads, campaigns, templates);
-  const usage = await getCurrentPeriodUsage(token, baseUsage);
+  const baseUsage = getUsage(
+    leads,
+    campaigns,
+    templates,
+  );
 
-  return getEntitlements(subscription, usage);
+  const usage = await getCurrentPeriodUsage(
+    token,
+    baseUsage,
+  );
+
+  return getEntitlements(
+    subscription,
+    usage,
+  );
 }
 
-export async function consumeAiGeneration(token: string) {
+export async function consumeAiGeneration(
+  token: string,
+) {
   const rows = await request<boolean[]>(
     token,
     "/rpc/consume_ai_generation",
@@ -338,7 +436,9 @@ export async function consumeAiGeneration(token: string) {
   return rows[0] === true;
 }
 
-export async function consumeEmailSend(token: string) {
+export async function consumeEmailSend(
+  token: string,
+) {
   const rows = await request<boolean[]>(
     token,
     "/rpc/consume_email_send",

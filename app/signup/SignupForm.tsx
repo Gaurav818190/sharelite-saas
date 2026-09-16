@@ -1,54 +1,110 @@
 "use client";
-
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export function SignupForm() {
   const router = useRouter();
+
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setError(null);
     setMessage(null);
     setPending(true);
 
     const form = new FormData(event.currentTarget);
 
-    const response = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        firstName: form.get("firstName"),
-        lastName: form.get("lastName"),
-        email: form.get("email"),
-        password: form.get("password"),
-      }),
-    });
+    const firstName = String(form.get("firstName") ?? "").trim();
+    const lastName = String(form.get("lastName") ?? "").trim();
+    const email = String(form.get("email") ?? "")
+      .trim()
+      .toLowerCase();
+    const password = String(form.get("password") ?? "");
 
-    const body = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      setError(body?.error ?? "Unable to create account.");
+    if (!firstName) {
+      setError("First name is required.");
       setPending(false);
       return;
     }
 
-    if (body?.requiresEmailConfirmation) {
-      setMessage(
-        "Account created. Check your email to confirm your account, then sign in."
-      );
+    if (!email) {
+      setError("Email is required.");
       setPending(false);
       return;
     }
 
-    router.replace("/");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      setPending(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          password,
+        }),
+      });
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const serverError = String(
+          body?.error ?? "Unable to create account."
+        );
+
+        const lowerError = serverError.toLowerCase();
+
+        if (
+          lowerError.includes("already registered") ||
+          lowerError.includes("already exists") ||
+          lowerError.includes("user already")
+        ) {
+          setError(
+            "An account with this email already exists. Please sign in."
+          );
+        } else {
+          setError(serverError);
+        }
+
+        setPending(false);
+        return;
+      }
+
+      if (body?.requiresEmailConfirmation) {
+        setMessage("A 6-digit OTP has been sent to your email.");
+
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}`;
+
+        setTimeout(() => {
+          router.push(verifyUrl);
+        }, 700);
+
+        return;
+      }
+
+      router.replace("/");
+    } catch (error) {
+      console.error("Signup form error:", error);
+      setError("Something went wrong. Please try again.");
+      setPending(false);
+    }
   }
 
   return (
-    <main className="min-h-screen bg-[#090d16] text-white flex items-center justify-center px-6">
+    <main className="flex min-h-screen items-center justify-center bg-[#090d16] px-6 text-white">
       <form
         onSubmit={submit}
         className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-8"
@@ -61,7 +117,7 @@ export function SignupForm() {
           Start with your name and work email.
         </p>
 
-        <div className="grid grid-cols-2 gap-3 mt-6">
+        <div className="mt-6 grid grid-cols-2 gap-3">
           <label className="text-sm font-bold">
             First name
             <input
@@ -69,7 +125,7 @@ export function SignupForm() {
               required
               maxLength={100}
               autoComplete="given-name"
-              className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4"
+              className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4 outline-none focus:border-cyan-400"
             />
           </label>
 
@@ -80,7 +136,7 @@ export function SignupForm() {
               name="lastName"
               maxLength={100}
               autoComplete="family-name"
-              className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4"
+              className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4 outline-none focus:border-cyan-400"
             />
           </label>
         </div>
@@ -92,7 +148,7 @@ export function SignupForm() {
             type="email"
             required
             autoComplete="email"
-            className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4"
+            className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4 outline-none focus:border-cyan-400"
           />
         </label>
 
@@ -104,7 +160,7 @@ export function SignupForm() {
             required
             minLength={8}
             autoComplete="new-password"
-            className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4"
+            className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#111827] px-4 outline-none focus:border-cyan-400"
           />
         </label>
 
@@ -121,8 +177,9 @@ export function SignupForm() {
         )}
 
         <button
+          type="submit"
           disabled={pending}
-          className="mt-6 h-12 w-full rounded-xl bg-cyan-500 font-black disabled:opacity-60"
+          className="mt-6 h-12 w-full cursor-pointer rounded-xl bg-cyan-500 font-black text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? "Creating account…" : "Create account"}
         </button>
@@ -130,7 +187,7 @@ export function SignupForm() {
         <button
           type="button"
           onClick={() => router.push("/login")}
-          className="mt-4 w-full text-sm text-cyan-400"
+          className="mt-4 w-full cursor-pointer text-sm text-cyan-400 hover:text-cyan-300"
         >
           Already have an account? Sign in
         </button>

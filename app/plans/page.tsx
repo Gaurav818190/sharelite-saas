@@ -55,7 +55,7 @@ const plans = [
     period: "/ month",
     description: "For high-volume outreach and large-scale corporations.",
     features: [
-      "100,000 Automated Email sends / month",
+      "50,000 Automated Email sends / month",
       "Unlimited Email Inboxes connection",
       "20,000 High-quality lead records / month",
       "Full Advanced Campaign tools & A/B testing",

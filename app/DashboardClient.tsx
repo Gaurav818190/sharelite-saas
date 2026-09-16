@@ -198,7 +198,9 @@ export default function DashboardClient({
     1,
     ...graphPoints.map((point) => point.leads + point.campaigns)
   );
-
+  const hasPerformanceData = graphPoints.some(
+  (point) => point.leads > 0 || point.campaigns > 0
+);
   const countdown =
     trialSeconds === null
       ? "-- : -- : --"
@@ -383,42 +385,52 @@ export default function DashboardClient({
   }, [trialEndsAt]);
 
   async function submitLead(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLeadError(null);
-    setPending(true);
+  event.preventDefault();
+  setLeadError(null);
 
-    try {
-      const response = await fetch(
-        editingId ? `/api/leads/${editingId}` : "/api/leads",
-        {
-          method: editingId ? "PATCH" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(leadForm),
-        }
-      );
+  const company = leadForm.company.trim();
 
-      const body = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(body?.error ?? "Unable to save lead.");
-      }
-
-      await refreshLeads();
-      setLeadForm(emptyLead);
-      setEditingId(null);
-    } catch (error) {
-      setLeadError(
-        error instanceof Error
-          ? error.message
-          : "Unable to save lead."
-      );
-    } finally {
-      setPending(false);
-    }
+  if (!company) {
+    setLeadError("Company name is required.");
+    return;
   }
 
+  setPending(true);
+
+  try {
+    const response = await fetch(
+      editingId ? `/api/leads/${editingId}` : "/api/leads",
+      {
+        method: editingId ? "PATCH" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...leadForm,
+          company,
+        }),
+      },
+    );
+
+    const body = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(body?.error ?? "Unable to save lead.");
+    }
+
+    await refreshLeads();
+    setLeadForm(emptyLead);
+    setEditingId(null);
+  } catch (error) {
+    setLeadError(
+      error instanceof Error
+        ? error.message
+        : "Unable to save lead.",
+    );
+  } finally {
+    setPending(false);
+  }
+}
   function editLead(lead: Lead) {
     setEditingId(lead.id);
 
@@ -789,7 +801,7 @@ export default function DashboardClient({
                     </div>
                   </div>
 
-                  {graphPoints.length === 0 ? (
+                  {!hasPerformanceData ? (
                     <div className="flex h-48 items-center justify-center text-sm text-slate-400">
                       No outreach activity yet.
                     </div>
@@ -931,6 +943,7 @@ export default function DashboardClient({
                 />
 
                 <input
+                  required
                   placeholder="Company"
                   value={leadForm.company}
                   onChange={(event) =>

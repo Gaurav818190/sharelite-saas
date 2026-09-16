@@ -1,13 +1,15 @@
 import { redirect } from "next/navigation";
 
 import DashboardClient from "./DashboardClient";
+import LandingPage from "./LandingPage";
+
 import { getCurrentUser } from "@/lib/supabase-auth";
 
 export default async function HomePage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login");
+    return <LandingPage />;
   }
 
   return (

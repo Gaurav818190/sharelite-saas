@@ -18,7 +18,7 @@ function parseInput(value: unknown): SendInput | null {
   const subject = typeof body.subject === "string" ? body.subject.trim() : "";
   const text = typeof body.text === "string" ? body.text.trim() : "";
   const html = body.html === undefined ? undefined : typeof body.html === "string" ? body.html : null;
-  if (html === null || subject.length < 1 || subject.length > 200 || text.length < 1 || text.length > 100000) return null;
+  if (html === null || subject.length < 1 || subject.length > 200 || text.length < 1 || text.length > 50000) return null;
   if (html !== undefined && (html.length > 200000 || !html.trim())) return null;
   return { subject, text, ...(html !== undefined ? { html } : {}) };
 }

@@ -127,7 +127,7 @@ begin
     when 'starter' then 500
     when 'pro' then 7500
     when 'business' then 25000
-    when 'enterprise' then 100000
+    when 'enterprise' then 50000
     else 0
   end;
 
