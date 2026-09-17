@@ -61,7 +61,8 @@ export default function WorkspacePanels({
 
   const [campaignName, setCampaignName] = useState("");
   const [templateName, setTemplateName] = useState("");
-
+  const [templateSubject, setTemplateSubject] = useState("");
+  const [templateBody, setTemplateBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -187,23 +188,50 @@ export default function WorkspacePanels({
   }, [load]);
 
   async function create(kind: "campaign" | "template") {
-    setError(null);
-    setSuccess(null);
+  setError(null);
+  setSuccess(null);
 
-    const path =
-      kind === "campaign"
-        ? "/api/campaigns"
-        : "/api/templates";
+  const path =
+    kind === "campaign"
+      ? "/api/campaigns"
+      : "/api/templates";
 
-    const body =
-      kind === "campaign"
-        ? { name: campaignName.trim() }
-        : {
-            name: templateName.trim(),
-            subject: "Hello from ShareLite",
-            body: "Hi,\n\nI wanted to connect with you.",
-          };
+  if (kind === "campaign") {
+    if (!campaignName.trim()) {
+      setError("Campaign name is required.");
+      return;
+    }
+  }
 
+  if (kind === "template") {
+    if (!templateName.trim()) {
+      setError("Template name is required.");
+      return;
+    }
+
+    if (!templateSubject.trim()) {
+      setError("Template subject is required.");
+      return;
+    }
+
+    if (!templateBody.trim()) {
+      setError("Template message is required.");
+      return;
+    }
+  }
+
+  const body =
+    kind === "campaign"
+      ? {
+          name: campaignName.trim(),
+        }
+      : {
+          name: templateName.trim(),
+          subject: templateSubject.trim(),
+          body: templateBody.trim(),
+        };
+
+  try {
     const response = await fetch(path, {
       method: "POST",
       headers: {
@@ -212,23 +240,32 @@ export default function WorkspacePanels({
       body: JSON.stringify(body),
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
 
     if (!response.ok) {
-      setError(result.error ?? "Unable to create item.");
+      setError(result?.error ?? "Unable to create item.");
       return;
     }
 
-    setCampaignName("");
-    setTemplateName("");
-    setSuccess(
-      kind === "campaign"
-        ? "Campaign created successfully."
-        : "Template created successfully."
-    );
+    if (kind === "campaign") {
+      setCampaignName("");
+      setSuccess("Campaign created successfully.");
+    } else {
+      setTemplateName("");
+      setTemplateSubject("");
+      setTemplateBody("");
+      setSuccess("Outreach template created successfully.");
+    }
 
     void load();
+  } catch (e) {
+    setError(
+      e instanceof Error
+        ? e.message
+        : "Unable to create item."
+    );
   }
+}
 
   async function removeCampaign(
     id: string,
@@ -442,70 +479,124 @@ export default function WorkspacePanels({
   }
 
   if (activeTab === "templates") {
-    return (
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-black">Templates</h2>
-          <p className="text-xs text-slate-400">
-            Create reusable outreach templates.
-          </p>
-        </div>
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-xl font-black">Outreach Templates</h2>
+        <p className="text-xs text-slate-400">
+          Create reusable outreach messages without using an AI API.
+        </p>
+      </div>
 
-        <div className={card}>
-          <div className="flex gap-2">
+      <div className={card}>
+        <div className="space-y-4">
+          <label className="block text-xs font-bold">
+            Template name
             <input
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="Template name"
-              className={`h-10 flex-1 rounded-xl border px-3 text-sm ${
-                dark
-                  ? "border-white/10 bg-[#111827] text-white"
-                  : "border-slate-200 bg-white text-slate-900"
-              }`}
+              placeholder="e.g. First Contact"
+              maxLength={200}
+              className={inputClass}
             />
+          </label>
 
+          <label className="block text-xs font-bold">
+            Subject
+            <input
+              value={templateSubject}
+              onChange={(e) => setTemplateSubject(e.target.value)}
+              placeholder="e.g. Let's connect"
+              maxLength={300}
+              className={inputClass}
+            />
+          </label>
+
+          <label className="block text-xs font-bold">
+            Message
+            <textarea
+              value={templateBody}
+              onChange={(e) => setTemplateBody(e.target.value)}
+              placeholder={`Hi [First Name],
+
+I wanted to connect with you regarding...`}
+              maxLength={20000}
+              rows={8}
+              className={`${inputClass} h-auto py-3`}
+            />
+          </label>
+
+          <div className="flex justify-end">
             <button
+              type="button"
               onClick={() => void create("template")}
-              disabled={!templateName.trim()}
+              disabled={
+                !templateName.trim() ||
+                !templateSubject.trim() ||
+                !templateBody.trim()
+              }
               className={buttonClass}
             >
-              Create
+              Save Template
             </button>
           </div>
         </div>
+      </div>
 
-        {error && (
-          <p role="alert" className="text-sm text-rose-400">
-            {error}
-          </p>
-        )}
+      {error && (
+        <p role="alert" className="text-sm text-rose-400">
+          {error}
+        </p>
+      )}
 
-        {success && (
-          <p className="text-sm text-emerald-400">{success}</p>
-        )}
+      {success && (
+        <p className="text-sm text-emerald-400">
+          {success}
+        </p>
+      )}
 
-        <div className="grid gap-3">
-          {templates.length ? (
-            templates.map((template) => (
-              <div key={template.id} className={card}>
-                <h3 className="font-bold">{template.name}</h3>
+      <div className="grid gap-3">
+        {templates.length ? (
+          templates.map((template) => (
+            <div key={template.id} className={card}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold">
+                    {template.name}
+                  </h3>
 
-                <p className="text-xs text-slate-400">
-                  {template.subject}
-                </p>
+                  <p className="mt-1 text-sm font-semibold text-cyan-400">
+                    {template.subject}
+                  </p>
+
+                  <p
+                    className={`mt-3 whitespace-pre-wrap text-sm leading-6 ${
+                      dark
+                        ? "text-slate-300"
+                        : "text-slate-600"
+                    }`}
+                  >
+                    {template.body}
+                  </p>
+                </div>
               </div>
-            ))
-          ) : (
-            <div className={card}>
-              <p className="text-sm text-slate-400">
-                No templates yet.
-              </p>
             </div>
-          )}
-        </div>
-      </section>
-    );
-  }
+          ))
+        ) : (
+          <div className={card}>
+            <p className="text-sm text-slate-400">
+              No outreach templates yet.
+            </p>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Create your first reusable outreach message above.
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
   if (activeTab === "analytics") {
     return (
