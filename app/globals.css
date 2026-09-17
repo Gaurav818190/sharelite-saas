@@ -44,3 +44,18 @@ input:disabled,
 select:disabled {
   cursor: not-allowed;
 }
+/* Prevent copying sidebar navigation text */
+.sidebar-no-copy {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Keep sidebar text non-selectable */
+.sidebar-no-copy *,
+.sidebar-no-copy a,
+.sidebar-no-copy button {
+  user-select: none;
+  -webkit-user-select: none;
+}

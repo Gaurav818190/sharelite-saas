@@ -92,6 +92,12 @@ export default function DashboardClient({
 
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [counts, setCounts] = useState<LeadCounts>(initialCounts);
+  const [changes, setChanges] = useState({
+    total: null as number | null,
+    valid: null as number | null,
+    contacted: null as number | null,
+    converted: null as number | null,
+  });
 
   const [leadForm, setLeadForm] = useState(emptyLead);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -291,6 +297,15 @@ export default function DashboardClient({
         }
       );
 
+      if (analyticsResponse.ok) {
+        setChanges({
+          total: analyticsBody?.changes?.total?.percentage ?? null,
+          valid: analyticsBody?.changes?.valid?.percentage ?? null,
+          contacted: analyticsBody?.changes?.contacted?.percentage ?? null,
+          converted: analyticsBody?.changes?.converted?.percentage ?? null,
+        });
+      }
+
       if (
         analyticsResponse.ok &&
         Array.isArray(analyticsBody?.performance)
@@ -298,6 +313,26 @@ export default function DashboardClient({
         setPerformance(analyticsBody.performance);
       }
 
+      if (analyticsResponse.ok) {
+  setChanges({
+    total:
+      typeof analyticsBody?.changes?.total?.percentage === "number"
+        ? analyticsBody.changes.total.percentage
+        : null,
+    valid:
+      typeof analyticsBody?.changes?.valid?.percentage === "number"
+        ? analyticsBody.changes.valid.percentage
+        : null,
+    contacted:
+      typeof analyticsBody?.changes?.contacted?.percentage === "number"
+        ? analyticsBody.changes.contacted.percentage
+        : null,
+    converted:
+      typeof analyticsBody?.changes?.converted?.percentage === "number"
+        ? analyticsBody.changes.converted.percentage
+        : null,
+  });
+}
       if (subscriptionResponse.ok) {
         const end =
           subscriptionBody?.trialEndsAt ??
@@ -795,7 +830,7 @@ export default function DashboardClient({
       }`}
     >
       <aside
-        className={`w-full md:w-72 shrink-0 border-b md:border-b-0 md:border-r p-4 md:p-6 flex flex-col justify-between ${
+        className={`w-full md:w-72 shrink-0 border-b md:border-b-0 md:border-r p-4 md:p-5 flex flex-col justify-between md:min-h-screen ${
           dark
             ? "border-white/10 bg-[#0b0f19]"
             : "border-slate-200 bg-white"
@@ -816,7 +851,7 @@ export default function DashboardClient({
             </div>
           </div>
 
-          <nav className="space-y-2">
+          <nav className="space-y-1">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -837,18 +872,18 @@ export default function DashboardClient({
           </nav>
         </div>
 
-        <div className="mt-8 rounded-2xl border border-purple-500/30 bg-purple-950/30 p-4">
+        <div className="mt-5 rounded-2xl border border-purple-500/30 bg-purple-950/30 p-3">
           <div className="text-xs font-black uppercase text-amber-400">
             👑 Upgrade to Pro
           </div>
 
-          <p className="mt-2 text-xs text-slate-300">
+          <p className="mt-1 text-[11px] leading-5 text-slate-300">
             Unlock advanced features, more leads and higher limits.
           </p>
 
           <Link
             href="/plans"
-            className="block w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-3 text-center text-xs font-black text-white transition hover:scale-[1.02]"
+            className="block w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-3 py-2 text-center text-xs font-black text-white transition hover:scale-[1.02]"
           >
             View Plans
           </Link>
@@ -857,7 +892,7 @@ export default function DashboardClient({
 
       <section className="flex-1 min-w-0">
         <header
-          className={`sticky top-0 z-20 flex min-h-[72px] flex-wrap items-center justify-between gap-4 border-b px-5 py-4 md:px-8 ${
+          className={`relative z-20 flex min-h-[72px] shrink-0 flex-wrap items-center justify-between gap-4 border-b px-5 py-4 md:px-8 ${
             dark
               ? "border-white/10 bg-[#070a12]/90"
               : "border-slate-200 bg-white/90"
@@ -910,7 +945,7 @@ export default function DashboardClient({
           </div>
         </header>
 
-        <div className="mx-auto w-full max-w-7xl space-y-8 p-5 md:p-8">
+        <div className="mx-auto w-full max-w-7xl space-y-6 p-5 md:p-8">
           {activeTab === "dashboard" && (
             <>
               <div>
@@ -955,13 +990,13 @@ export default function DashboardClient({
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
                 <div
                   className={`rounded-2xl border p-6 lg:col-span-2 ${
                     dark
                       ? "border-white/10 bg-white/[0.03]"
                       : "border-slate-200 bg-white"
-                  }`}
+                    } h-full`}
                 >
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-sm font-black">
@@ -1014,7 +1049,7 @@ export default function DashboardClient({
                   )}
                 </div>
 
-                <div className="rounded-2xl border border-purple-500/30 bg-purple-950/30 p-6">
+                <div className="h-full rounded-2xl border border-purple-500/30 bg-purple-950/30 p-6">
                   <div className="text-xs font-black uppercase text-amber-400">
                     👑 ShareLite Premium
                   </div>
