@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type FormEvent,
 } from "react";
 
@@ -97,12 +98,16 @@ export default function DashboardClient({
   const [leadError, setLeadError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<string | null>(null);
+
   const csvInputRef = useRef<HTMLInputElement | null>(null);
+
   const [pending, setPending] = useState(false);
 
   const [aiMessages, setAiMessages] = useState<Record<string, string>>(
     {}
   );
+
+  const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
 
   const [analyticsRange, setAnalyticsRange] =
     useState<AnalyticsRange>("7d");
@@ -112,6 +117,7 @@ export default function DashboardClient({
   );
 
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+
   const [trialSeconds, setTrialSeconds] = useState<number | null>(
     120 * 3600
   );
@@ -129,8 +135,10 @@ export default function DashboardClient({
   );
 
   const [logoutOpen, setLogoutOpen] = useState(false);
-
-  const firstName = getFirstName(user);
+  const [profileFirstName, setProfileFirstName] = useState("");
+  
+  const firstName =
+  profileFirstName.trim() || getFirstName(user);
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: "📊" },
@@ -198,9 +206,11 @@ export default function DashboardClient({
     1,
     ...graphPoints.map((point) => point.leads + point.campaigns)
   );
+
   const hasPerformanceData = graphPoints.some(
-  (point) => point.leads > 0 || point.campaigns > 0
-);
+    (point) => point.leads > 0 || point.campaigns > 0
+  );
+
   const countdown =
     trialSeconds === null
       ? "-- : -- : --"
@@ -270,7 +280,7 @@ export default function DashboardClient({
         );
       }
 
-      setLeads(leadsBody?.leads ?? []);
+      setLeads(Array.isArray(leadsBody?.leads) ? leadsBody.leads : []);
 
       setCounts(
         leadsBody?.counts ?? {
@@ -281,8 +291,11 @@ export default function DashboardClient({
         }
       );
 
-      if (analyticsResponse.ok) {
-        setPerformance(analyticsBody?.performance ?? []);
+      if (
+        analyticsResponse.ok &&
+        Array.isArray(analyticsBody?.performance)
+      ) {
+        setPerformance(analyticsBody.performance);
       }
 
       if (subscriptionResponse.ok) {
@@ -362,6 +375,86 @@ export default function DashboardClient({
   }, [analyticsRange]);
 
   useEffect(() => {
+  let cancelled = false;
+
+  async function loadProfileName() {
+    try {
+      const response = await fetch("/api/profile", {
+        cache: "no-store",
+      });
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok || cancelled) {
+        return;
+      }
+
+      const profile = body?.profile;
+
+      const savedName =
+        typeof profile?.first_name === "string"
+          ? profile.first_name.trim()
+          : typeof profile?.name === "string"
+          ? profile.name.trim()
+          : "";
+
+      if (savedName) {
+        const formattedName = savedName
+          .replace(/[._-]+/g, " ")
+          .trim()
+          .split(/\s+/)[0];
+
+        setProfileFirstName(
+          formattedName.charAt(0).toUpperCase() +
+            formattedName.slice(1).toLowerCase()
+        );
+      }
+    } catch {
+      // Fallback to auth metadata name.
+    }
+  }
+
+  void loadProfileName();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+  useEffect(() => {
+  function handleProfileUpdated(event: Event) {
+    const customEvent = event as CustomEvent<{
+      firstName?: string;
+    }>;
+
+    const updatedName =
+      typeof customEvent.detail?.firstName === "string"
+        ? customEvent.detail.firstName.trim()
+        : "";
+
+    if (!updatedName) {
+      return;
+    }
+
+    setProfileFirstName(
+      updatedName.charAt(0).toUpperCase() +
+        updatedName.slice(1).toLowerCase()
+    );
+  }
+
+  window.addEventListener(
+    "sharelite-profile-updated",
+    handleProfileUpdated
+  );
+
+  return () => {
+    window.removeEventListener(
+      "sharelite-profile-updated",
+      handleProfileUpdated
+    );
+  };
+}, []);
+
+  useEffect(() => {
     if (!trialEndsAt) {
       return;
     }
@@ -385,52 +478,54 @@ export default function DashboardClient({
   }, [trialEndsAt]);
 
   async function submitLead(event: FormEvent<HTMLFormElement>) {
-  event.preventDefault();
-  setLeadError(null);
+    event.preventDefault();
+    setLeadError(null);
 
-  const company = leadForm.company.trim();
+    const company = leadForm.company.trim();
 
-  if (!company) {
-    setLeadError("Company name is required.");
-    return;
-  }
-
-  setPending(true);
-
-  try {
-    const response = await fetch(
-      editingId ? `/api/leads/${editingId}` : "/api/leads",
-      {
-        method: editingId ? "PATCH" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...leadForm,
-          company,
-        }),
-      },
-    );
-
-    const body = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      throw new Error(body?.error ?? "Unable to save lead.");
+    if (!company) {
+      setLeadError("Company name is required.");
+      return;
     }
 
-    await refreshLeads();
-    setLeadForm(emptyLead);
-    setEditingId(null);
-  } catch (error) {
-    setLeadError(
-      error instanceof Error
-        ? error.message
-        : "Unable to save lead.",
-    );
-  } finally {
-    setPending(false);
+    setPending(true);
+
+    try {
+      const response = await fetch(
+        editingId ? `/api/leads/${editingId}` : "/api/leads",
+        {
+          method: editingId ? "PATCH" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...leadForm,
+            company,
+          }),
+        }
+      );
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(body?.error ?? "Unable to save lead.");
+      }
+
+      await refreshLeads();
+
+      setLeadForm(emptyLead);
+      setEditingId(null);
+    } catch (error) {
+      setLeadError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save lead."
+      );
+    } finally {
+      setPending(false);
+    }
   }
-}
+
   function editLead(lead: Lead) {
     setEditingId(lead.id);
 
@@ -442,6 +537,8 @@ export default function DashboardClient({
       status: lead.status,
       source: lead.source ?? "",
     });
+
+    setActiveTab("leads");
   }
 
   async function removeLead(id: string) {
@@ -458,53 +555,62 @@ export default function DashboardClient({
       return;
     }
 
-    await refreshLeads();
-  }
-  async function importCsv(event: React.ChangeEvent<HTMLInputElement>) {
-  const file = event.target.files?.[0];
-
-  if (!file) {
-    return;
-  }
-
-  setImporting(true);
-  setImportSummary(null);
-  setLeadError(null);
-
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const response = await fetch("/api/leads/import", {
-      method: "POST",
-      body: formData,
+    setAiMessages((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
     });
 
-    const data = await response.json();
+    await refreshLeads();
+  }
 
-    if (!response.ok) {
-      throw new Error(data.error || "CSV import failed.");
+  async function importCsv(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
     }
 
-    setImportSummary(
-      `Imported: ${data.imported}, Invalid: ${data.invalid}, Duplicates: ${data.duplicates}, Skipped by limit: ${data.skippedByLimit}`
-    );
+    setImporting(true);
+    setImportSummary(null);
+    setLeadError(null);
 
-    await refreshLeads();
-  } catch (error) {
-    setLeadError(
-      error instanceof Error ? error.message : "CSV import failed."
-    );
-  } finally {
-    setImporting(false);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    if (csvInputRef.current) {
-      csvInputRef.current.value = "";
+      const response = await fetch("/api/leads/import", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || "CSV import failed.");
+      }
+
+      setImportSummary(
+        `Imported: ${data.imported}, Invalid: ${data.invalid}, Duplicates: ${data.duplicates}, Skipped by limit: ${data.skippedByLimit}`
+      );
+
+      await refreshLeads();
+    } catch (error) {
+      setLeadError(
+        error instanceof Error
+          ? error.message
+          : "CSV import failed."
+      );
+    } finally {
+      setImporting(false);
+
+      if (csvInputRef.current) {
+        csvInputRef.current.value = "";
+      }
     }
   }
-}
 
-    function downloadCsvTemplate() {
+  function downloadCsvTemplate() {
     const csvContent =
       "name,email,company,website\n" +
       "John Doe,john@example.com,Example Company,https://example.com\n";
@@ -518,6 +624,7 @@ export default function DashboardClient({
 
     link.href = url;
     link.download = "sharelite-leads-template.csv";
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -526,49 +633,122 @@ export default function DashboardClient({
   }
 
   async function validateLead(id: string) {
-    setLeadError(null);
+  setLeadError(null);
+  setPending(true);
 
+  try {
     const response = await fetch(`/api/leads/${id}/validate`, {
-      method: "POST",
-    });
-
-    const body = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      setLeadError(body?.error ?? "Unable to validate email.");
-      return;
-    }
-
-    await refreshLeads();
-  }
-
-  async function generateAiMessage(id: string) {
-    setLeadError(null);
-
-    const response = await fetch(`/api/leads/${id}/ai-message`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        goal: "Introduce ShareLite and start a relevant conversation",
-        tone: "professional",
-      }),
+      cache: "no-store",
     });
 
     const body = await response.json().catch(() => null);
 
     if (!response.ok) {
-      setLeadError(
-        body?.error ?? "Unable to generate AI message."
+      throw new Error(
+        body?.error ?? "Unable to validate email."
       );
+    }
+
+    const updatedLead = body?.lead;
+
+    if (updatedLead && typeof updatedLead.id === "string") {
+      setLeads((currentLeads) =>
+        currentLeads.map((lead) =>
+          lead.id === updatedLead.id
+            ? {
+                ...lead,
+                ...updatedLead,
+              }
+            : lead
+        )
+      );
+    }
+
+    await refreshLeads();
+
+    if (body?.message) {
+      setLeadError(null);
+    }
+  } catch (error) {
+    setLeadError(
+      error instanceof Error
+        ? error.message
+        : "Unable to validate email."
+    );
+  } finally {
+    setPending(false);
+  }
+}
+  async function generateAiMessage(id: string) {
+    setLeadError(null);
+    setAiLoadingId(id);
+
+    try {
+      const response = await fetch(`/api/leads/${id}/ai-message`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          goal: "Introduce ShareLite and start a relevant conversation",
+          tone: "professional",
+        }),
+      });
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setLeadError(
+          body?.error ?? "Unable to generate AI message."
+        );
+        return;
+      }
+
+      const generatedMessage =
+        typeof body?.message === "string"
+          ? body.message.trim()
+          : "";
+
+      if (!generatedMessage) {
+        setLeadError(
+          "AI returned an empty message. Please try again."
+        );
+        return;
+      }
+
+      setAiMessages((current) => ({
+        ...current,
+        [id]: generatedMessage,
+      }));
+    } catch (error) {
+      setLeadError(
+        error instanceof Error
+          ? error.message
+          : "Unable to generate AI message."
+      );
+    } finally {
+      setAiLoadingId(null);
+    }
+  }
+
+  async function copyAiMessage(id: string) {
+    const message = aiMessages[id];
+
+    if (!message) {
       return;
     }
 
-    setAiMessages((current) => ({
-      ...current,
-      [id]: body.message,
-    }));
+    try {
+      await navigator.clipboard.writeText(message);
+    } catch {
+      setLeadError(
+        "Copy failed. Please select the message and copy it manually."
+      );
+    }
   }
 
   async function startCheckout() {
@@ -601,6 +781,7 @@ export default function DashboardClient({
           ? error.message
           : "Unable to start checkout."
       );
+
       setCheckoutPending(false);
     }
   }
@@ -628,6 +809,7 @@ export default function DashboardClient({
 
             <div>
               <div className="font-black text-lg">ShareLite</div>
+
               <div className="text-[10px] uppercase tracking-widest text-slate-400">
                 Outreach Platform
               </div>
@@ -664,12 +846,12 @@ export default function DashboardClient({
             Unlock advanced features, more leads and higher limits.
           </p>
 
-         <Link
-   href="/plans"
-   className="block w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-3 text-center text-xs font-black text-white transition hover:scale-[1.02]"
->
-   View Plans
- </Link>
+          <Link
+            href="/plans"
+            className="block w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-3 text-center text-xs font-black text-white transition hover:scale-[1.02]"
+          >
+            View Plans
+          </Link>
         </div>
       </aside>
 
@@ -692,15 +874,20 @@ export default function DashboardClient({
 
           <div className="flex items-center gap-3">
             <Link
-  href="/plans"
-  className="rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-2 text-xs font-black text-white transition hover:scale-[1.02]"
->
-  Upgrade
-</Link>
+              href="/plans"
+              className="rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-2 text-xs font-black text-white transition hover:scale-[1.02]"
+            >
+              Upgrade
+            </Link>
+
             <button
               type="button"
               onClick={() => setDark((value) => !value)}
-              className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold"
+              className={`rounded-xl border px-3 py-2 text-xs font-bold ${
+                dark
+                  ? "border-white/10 text-slate-100"
+                  : "border-slate-200 text-slate-700"
+              }`}
             >
               {dark ? "☀ Light Mode" : "☾ Dark Mode"}
             </button>
@@ -851,11 +1038,11 @@ export default function DashboardClient({
                   </div>
 
                   <Link
-  href="/plans"
-  className="block w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-3 text-center text-xs font-black text-white transition hover:scale-[1.02]"
->
-  Upgrade Now
-</Link>
+                    href="/plans"
+                    className="block w-full rounded-xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-amber-500 px-4 py-3 text-center text-xs font-black text-white transition hover:scale-[1.02]"
+                  >
+                    Upgrade Now
+                  </Link>
                 </div>
               </div>
             </>
@@ -864,49 +1051,53 @@ export default function DashboardClient({
           {activeTab === "leads" && (
             <div className="space-y-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-  <div>
-    <h2 className="text-2xl font-black">Leads</h2>
+                <div>
+                  <h2 className="text-2xl font-black">Leads</h2>
 
-    <p className="mt-1 text-xs text-slate-400">
-      Manage your outreach leads.
-    </p>
-  </div>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Manage your outreach leads.
+                  </p>
+                </div>
 
-  <div className="flex flex-wrap items-center gap-2">
-    <input
-      ref={csvInputRef}
-      type="file"
-      accept=".csv,text/csv"
-      onChange={importCsv}
-      className="hidden"
-      id="csv-leads-upload"
-    />
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={csvInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={importCsv}
+                    className="hidden"
+                    id="csv-leads-upload"
+                  />
 
-    <label
-      htmlFor="csv-leads-upload"
-      className={`cursor-pointer rounded-xl border px-4 py-3 text-xs font-black transition ${
-        dark
-          ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
-          : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-      } ${importing ? "pointer-events-none opacity-60" : ""}`}
-    >
-      {importing ? "Importing..." : "Import CSV"}
-    </label>
-    <button
-  type="button"
-  onClick={downloadCsvTemplate}
-  className={`rounded-xl border px-4 py-3 text-xs font-black transition ${
-    dark
-      ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
-      : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-  }`}
->
-  Download Template
-</button>
+                  <label
+                    htmlFor="csv-leads-upload"
+                    className={`cursor-pointer rounded-xl border px-4 py-3 text-xs font-black transition ${
+                      dark
+                        ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
+                        : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                    } ${
+                      importing
+                        ? "pointer-events-none opacity-60"
+                        : ""
+                    }`}
+                  >
+                    {importing ? "Importing..." : "Import CSV"}
+                  </label>
 
+                  <button
+                    type="button"
+                    onClick={downloadCsvTemplate}
+                    className={`rounded-xl border px-4 py-3 text-xs font-black transition ${
+                      dark
+                        ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
+                        : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                    }`}
+                  >
+                    Download Template
+                  </button>
+                </div>
+              </div>
 
-  </div>
-</div>
               <form
                 onSubmit={submitLead}
                 className={`grid grid-cols-1 gap-3 rounded-2xl border p-5 md:grid-cols-3 ${
@@ -925,7 +1116,11 @@ export default function DashboardClient({
                       name: event.target.value,
                     })
                   }
-                  className="rounded-xl border border-white/10 bg-slate-900 px-3 py-3 text-sm"
+                  className={`rounded-xl border px-3 py-3 text-sm ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
                 />
 
                 <input
@@ -939,7 +1134,11 @@ export default function DashboardClient({
                       email: event.target.value,
                     })
                   }
-                  className="rounded-xl border border-white/10 bg-slate-900 px-3 py-3 text-sm"
+                  className={`rounded-xl border px-3 py-3 text-sm ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
                 />
 
                 <input
@@ -952,7 +1151,11 @@ export default function DashboardClient({
                       company: event.target.value,
                     })
                   }
-                  className="rounded-xl border border-white/10 bg-slate-900 px-3 py-3 text-sm"
+                  className={`rounded-xl border px-3 py-3 text-sm ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
                 />
 
                 <input
@@ -964,7 +1167,11 @@ export default function DashboardClient({
                       website: event.target.value,
                     })
                   }
-                  className="rounded-xl border border-white/10 bg-slate-900 px-3 py-3 text-sm"
+                  className={`rounded-xl border px-3 py-3 text-sm ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
                 />
 
                 <select
@@ -975,7 +1182,11 @@ export default function DashboardClient({
                       status: event.target.value as LeadStatus,
                     })
                   }
-                  className="rounded-xl border border-white/10 bg-slate-900 px-3 py-3 text-sm"
+                  className={`rounded-xl border px-3 py-3 text-sm ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
                 >
                   <option value="new">New</option>
                   <option value="valid">Valid</option>
@@ -1001,11 +1212,13 @@ export default function DashboardClient({
                   {leadError}
                 </p>
               )}
+
               {importSummary && (
-  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
-    {importSummary}
-  </div>
-)}
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+                  {importSummary}
+                </div>
+              )}
+
               <div className="space-y-3">
                 {leadRows.length === 0 ? (
                   <div className="rounded-2xl border border-white/10 p-6 text-sm text-slate-400">
@@ -1065,9 +1278,12 @@ export default function DashboardClient({
                             onClick={() =>
                               void generateAiMessage(lead.id)
                             }
-                            className="rounded-lg bg-purple-500 px-3 py-2 text-xs font-bold text-white"
+                            disabled={aiLoadingId === lead.id}
+                            className="rounded-lg bg-purple-500 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            AI Message
+                            {aiLoadingId === lead.id
+                              ? "Generating..."
+                              : "AI Message"}
                           </button>
 
                           <button
@@ -1081,16 +1297,47 @@ export default function DashboardClient({
                       </div>
 
                       {aiMessages[lead.id] && (
-                        <textarea
-                          value={aiMessages[lead.id]}
-                          onChange={(event) =>
-                            setAiMessages((current) => ({
-                              ...current,
-                              [lead.id]: event.target.value,
-                            }))
-                          }
-                          className="mt-4 min-h-28 w-full rounded-xl border border-white/10 bg-slate-900 p-3 text-sm"
-                        />
+                        <div className="mt-4 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <label
+                              htmlFor={`ai-message-${lead.id}`}
+                              className="text-xs font-black uppercase tracking-wide text-slate-400"
+                            >
+                              Generated AI Message
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => void copyAiMessage(lead.id)}
+                              className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-black text-white transition hover:bg-emerald-600"
+                            >
+                              Copy Message
+                            </button>
+                          </div>
+
+                          <textarea
+                            id={`ai-message-${lead.id}`}
+                            value={aiMessages[lead.id]}
+                            onChange={(event) =>
+                              setAiMessages((current) => ({
+                                ...current,
+                                [lead.id]: event.target.value,
+                              }))
+                            }
+                            rows={8}
+                            spellCheck={false}
+                            aria-label="Generated AI outreach message"
+                            className={`w-full resize-y rounded-xl border p-4 text-sm leading-6 whitespace-pre-wrap outline-none focus:ring-2 focus:ring-purple-500 ${
+                              dark
+                                ? "border-white/10 bg-slate-900 text-slate-100"
+                                : "border-slate-200 bg-white text-slate-900"
+                            }`}
+                          />
+
+                          <p className="text-[11px] text-slate-500">
+                            You can edit this message before sending it.
+                          </p>
+                        </div>
                       )}
                     </div>
                   ))
@@ -1117,6 +1364,7 @@ export default function DashboardClient({
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="logout-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-5"
           onClick={() => setLogoutOpen(false)}
         >
@@ -1128,7 +1376,7 @@ export default function DashboardClient({
             }`}
             onClick={(event) => event.stopPropagation()}
           >
-            <h2 className="text-lg font-black">
+            <h2 id="logout-title" className="text-lg font-black">
               Are you sure you want to log out?
             </h2>
 
@@ -1136,7 +1384,11 @@ export default function DashboardClient({
               <button
                 type="button"
                 onClick={() => setLogoutOpen(false)}
-                className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold"
+                className={`rounded-xl border px-4 py-2 text-sm font-bold ${
+                  dark
+                    ? "border-white/10 text-white"
+                    : "border-slate-200 text-slate-800"
+                }`}
               >
                 Cancel
               </button>

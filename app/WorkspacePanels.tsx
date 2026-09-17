@@ -276,67 +276,83 @@ export default function WorkspacePanels({
   }
 
   async function saveProfile() {
-    setError(null);
-    setSuccess(null);
+  setError(null);
+  setSuccess(null);
 
-    if (!firstName.trim()) {
-      setError("First name is required.");
-      return;
-    }
-
-    if (firstName.trim().length > 100) {
-      setError("First name must be 100 characters or less.");
-      return;
-    }
-
-    if (lastName.trim().length > 100) {
-      setError("Last name must be 100 characters or less.");
-      return;
-    }
-
-    if (name.trim().length > 200) {
-      setError("Display name must be 200 characters or less.");
-      return;
-    }
-
-    setSavingProfile(true);
-
-    try {
-      const response = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: name.trim() || null,
-          first_name: firstName.trim(),
-          last_name: lastName.trim() || null,
-        }),
-      });
-
-      const body = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          body.error ?? "Unable to update profile."
-        );
-      }
-
-      setProfile(body.profile);
-      setName(body.profile?.name ?? "");
-      setFirstName(body.profile?.first_name ?? "");
-      setLastName(body.profile?.last_name ?? "");
-      setSuccess("Profile settings saved successfully.");
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Unable to update profile."
-      );
-    } finally {
-      setSavingProfile(false);
-    }
+  if (!firstName.trim()) {
+    setError("First name is required.");
+    return;
   }
+
+  if (firstName.trim().length > 100) {
+    setError("First name must be 100 characters or less.");
+    return;
+  }
+
+  if (lastName.trim().length > 100) {
+    setError("Last name must be 100 characters or less.");
+    return;
+  }
+
+  if (name.trim().length > 200) {
+    setError("Display name must be 200 characters or less.");
+    return;
+  }
+
+  setSavingProfile(true);
+
+  try {
+    const response = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: name.trim() || null,
+        first_name: firstName.trim(),
+        last_name: lastName.trim() || null,
+      }),
+    });
+
+    const body = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        body.error ?? "Unable to update profile."
+      );
+    }
+
+    const savedProfile = body.profile as Profile | null;
+
+    const updatedFirstName =
+      typeof savedProfile?.first_name === "string"
+        ? savedProfile.first_name.trim()
+        : firstName.trim();
+
+    setProfile(savedProfile);
+    setName(savedProfile?.name ?? "");
+    setFirstName(savedProfile?.first_name ?? "");
+    setLastName(savedProfile?.last_name ?? "");
+
+    setSuccess("Profile settings saved successfully.");
+
+    window.dispatchEvent(
+      new CustomEvent("sharelite-profile-updated", {
+        detail: {
+          firstName: updatedFirstName,
+        },
+      })
+    );
+  } catch (e) {
+    setError(
+      e instanceof Error
+        ? e.message
+        : "Unable to update profile."
+    );
+  } finally {
+    setSavingProfile(false);
+  }
+}
 
   if (activeTab === "campaigns") {
     return (

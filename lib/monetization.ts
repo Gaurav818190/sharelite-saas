@@ -447,8 +447,8 @@ export async function getCurrentEntitlements(
 
 export async function consumeAiGeneration(
   token: string,
-) {
-  const rows = await request<boolean[]>(
+): Promise<boolean> {
+  const result = await request<boolean>(
     token,
     "/rpc/consume_ai_generation",
     {
@@ -457,13 +457,13 @@ export async function consumeAiGeneration(
     },
   );
 
-  return rows[0] === true;
+  return result === true;
 }
 
 export async function consumeEmailSend(
   token: string,
-) {
-  const rows = await request<boolean[]>(
+): Promise<boolean> {
+  const result = await request<boolean>(
     token,
     "/rpc/consume_email_send",
     {
@@ -472,5 +472,5 @@ export async function consumeEmailSend(
     },
   );
 
-  return rows[0] === true;
+  return result === true;
 }
