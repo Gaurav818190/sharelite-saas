@@ -18,6 +18,8 @@ import type {
   LeadStatus,
 } from "@/lib/supabase-db";
 
+import type { Template } from "@/lib/supabase-workspaces";
+
 import WorkspacePanels from "./WorkspacePanels";
 import ReviewsPanel from "./ReviewsPanel";
 
@@ -114,7 +116,26 @@ export default function DashboardClient({
   );
 
   const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
+  const [outreachTemplates, setOutreachTemplates] = useState<Template[]>(
+  []
+);
 
+const [selectedTemplateIds, setSelectedTemplateIds] = useState<
+  Record<string, string>
+>({});
+
+const [outreachMessages, setOutreachMessages] = useState<
+  Record<string, string>
+>({});
+
+const [outreachSubjects, setOutreachSubjects] = useState<
+  Record<string, string>
+>({});
+
+const [templatesLoading, setTemplatesLoading] = useState(false);
+const [templatesError, setTemplatesError] = useState<string | null>(
+  null
+);
   const [analyticsRange, setAnalyticsRange] =
     useState<AnalyticsRange>("7d");
 
@@ -488,7 +509,56 @@ export default function DashboardClient({
     );
   };
 }, []);
+  useEffect(() => {
+  if (activeTab !== "leads") {
+    return;
+  }
 
+  let cancelled = false;
+
+  async function loadOutreachTemplates() {
+    setTemplatesLoading(true);
+    setTemplatesError(null);
+
+    try {
+      const response = await fetch("/api/templates", {
+        cache: "no-store",
+      });
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          body?.error ?? "Unable to load outreach templates."
+        );
+      }
+
+      if (!cancelled) {
+        setOutreachTemplates(
+          Array.isArray(body?.templates) ? body.templates : []
+        );
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setTemplatesError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load outreach templates."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setTemplatesLoading(false);
+      }
+    }
+  }
+
+  void loadOutreachTemplates();
+
+  return () => {
+    cancelled = true;
+  };
+}, [activeTab]);
   useEffect(() => {
     if (!trialEndsAt) {
       return;
@@ -785,7 +855,70 @@ export default function DashboardClient({
       );
     }
   }
+  function personalizeTemplate(
+  text: string,
+  lead: Lead
+): string {
+  const fullName = lead.name.trim();
+  const firstName =
+    fullName.split(/\s+/)[0] || "there";
 
+  return text
+    .replace(/\[First Name\]/gi, firstName)
+    .replace(/\[Name\]/gi, fullName || "there")
+    .replace(/\[Company\]/gi, lead.company ?? "your company")
+    .replace(/\[Email\]/gi, lead.email)
+    .replace(/\[Website\]/gi, lead.website ?? "");
+}
+
+function applyOutreachTemplate(
+  lead: Lead,
+  templateId: string
+) {
+  const template = outreachTemplates.find(
+    (item) => item.id === templateId
+  );
+
+  if (!template) {
+    return;
+  }
+
+  setSelectedTemplateIds((current) => ({
+    ...current,
+    [lead.id]: templateId,
+  }));
+
+  setOutreachSubjects((current) => ({
+    ...current,
+    [lead.id]: personalizeTemplate(template.subject, lead),
+  }));
+
+  setOutreachMessages((current) => ({
+    ...current,
+    [lead.id]: personalizeTemplate(template.body, lead),
+  }));
+}
+
+async function copyOutreachMessage(id: string) {
+  const subject = outreachSubjects[id] ?? "";
+  const message = outreachMessages[id] ?? "";
+
+  if (!message.trim()) {
+    return;
+  }
+
+  const content = subject.trim()
+    ? `Subject: ${subject}\n\n${message}`
+    : message;
+
+  try {
+    await navigator.clipboard.writeText(content);
+  } catch {
+    setLeadError(
+      "Copy failed. Please select the message and copy it manually."
+    );
+  }
+}
   async function startCheckout() {
     setCheckoutPending(true);
     setCheckoutError(null);
@@ -1359,6 +1492,7 @@ export default function DashboardClient({
                                 [lead.id]: event.target.value,
                               }))
                             }
+                            
                             rows={8}
                             spellCheck={false}
                             aria-label="Generated AI outreach message"
@@ -1374,13 +1508,128 @@ export default function DashboardClient({
                           </p>
                         </div>
                       )}
+                      <div
+  className={`mt-4 rounded-2xl border p-4 ${
+    dark
+      ? "border-white/10 bg-white/[0.02]"
+      : "border-slate-200 bg-slate-50"
+  }`}
+>
+  <div className="space-y-3">
+    <div>
+      <h4 className="text-sm font-black">
+        Outreach Message
+      </h4>
+
+      <p className="mt-1 text-xs text-slate-500">
+        Create a personalized message from a saved template.
+      </p>
+    </div>
+
+    {templatesLoading ? (
+      <p className="text-xs text-slate-500">
+        Loading templates...
+      </p>
+    ) : outreachTemplates.length === 0 ? (
+      <p className="text-xs text-amber-400">
+        No templates found. Create one in Templates first.
+      </p>
+    ) : (
+      <>
+        <select
+          value={selectedTemplateIds[lead.id] ?? ""}
+          onChange={(event) =>
+            applyOutreachTemplate(
+              lead,
+              event.target.value
+            )
+          }
+          className={`w-full rounded-xl border px-3 py-3 text-sm ${
+            dark
+              ? "border-white/10 bg-slate-900 text-white"
+              : "border-slate-200 bg-white text-slate-900"
+          }`}
+        >
+          <option value="">
+            Select an outreach template
+          </option>
+
+          {outreachTemplates.map((template) => (
+            <option
+              key={template.id}
+              value={template.id}
+            >
+              {template.name}
+            </option>
+          ))}
+        </select>
+
+        {outreachSubjects[lead.id] !== undefined && (
+          <input
+            value={outreachSubjects[lead.id]}
+            onChange={(event) =>
+              setOutreachSubjects((current) => ({
+                ...current,
+                [lead.id]: event.target.value,
+              }))
+            }
+            placeholder="Email subject"
+            className={`w-full rounded-xl border px-3 py-3 text-sm ${
+              dark
+                ? "border-white/10 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-900"
+            }`}
+          />
+        )}
+
+        {outreachMessages[lead.id] !== undefined && (
+          <>
+            <textarea
+              value={outreachMessages[lead.id]}
+              onChange={(event) =>
+                setOutreachMessages((current) => ({
+                  ...current,
+                  [lead.id]: event.target.value,
+                }))
+              }
+              rows={8}
+              className={`w-full resize-y rounded-xl border p-4 text-sm leading-6 outline-none ${
+                dark
+                  ? "border-white/10 bg-slate-900 text-slate-100"
+                  : "border-slate-200 bg-white text-slate-900"
+              }`}
+            />
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  void copyOutreachMessage(lead.id)
+                }
+                className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-600"
+              >
+                Copy Message
+              </button>
+            </div>
+          </>
+        )}
+      </>
+    )}
+
+    {templatesError && (
+      <p className="text-xs text-rose-400">
+        {templatesError}
+      </p>
+    )}
+  </div>
+</div>
                     </div>
                   ))
                 )}
               </div>
             </div>
           )}
-
+          
           {activeTab === "reviews" && <ReviewsPanel dark={dark} />}
 
           {activeTab !== "dashboard" &&
@@ -1394,7 +1643,7 @@ export default function DashboardClient({
             )}
         </div>
       </section>
-
+        
       {logoutOpen && (
         <div
           role="dialog"
