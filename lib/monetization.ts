@@ -460,6 +460,21 @@ export async function consumeAiGeneration(
   return result === true;
 }
 
+export async function releaseAiGeneration(
+  token: string,
+): Promise<boolean> {
+  const result = await request<boolean>(
+    token,
+    "/rpc/release_ai_generation",
+    {
+      method: "POST",
+      body: "{}",
+    },
+  );
+
+  return result === true;
+}
+
 export async function consumeEmailSend(
   token: string,
 ): Promise<boolean> {
