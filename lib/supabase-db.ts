@@ -215,8 +215,14 @@ export async function deleteReview(accessToken: string, reviewId: string) {
 export function countLeads(leads: Lead[]): LeadCounts {
   return {
     total: leads.length,
-    valid: leads.filter((lead) => lead.status === "valid").length,
-    contacted: leads.filter((lead) => lead.status === "contacted").length,
-    converted: leads.filter((lead) => lead.status === "converted").length,
+    valid: leads.filter(
+      (lead) => lead.validation_status === "valid"
+    ).length,
+    contacted: leads.filter(
+      (lead) => lead.status === "contacted"
+    ).length,
+    converted: leads.filter(
+      (lead) => lead.status === "converted"
+    ).length,
   };
 }

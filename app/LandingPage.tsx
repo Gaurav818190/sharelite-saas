@@ -1,134 +1,344 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+
+const stats = [
+  { icon: "<", value: 120, suffix: "ms", label: "Inference Time" },
+  { icon: "%", value: 99.99, suffix: "%", label: "Platform Uptime" },
+  { icon: "*", value: 24, suffix: "/7", label: "Autonomous Runtime" },
+  { icon: "#", value: 2.4, suffix: "M", label: "Context Windows" },
+];
 
 export default function LandingPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [countsStarted, setCountsStarted] = useState(false);
+  const statsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!statsRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setCountsStarted(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.25 },
+    );
+
+    observer.observe(statsRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 720) setMenuOpen(false);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
-    <main className="min-h-screen overflow-hidden bg-[#080611] text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,#5b21b6_0%,transparent_35%),radial-gradient(circle_at_bottom_left,#312e81_0%,transparent_35%)]" />
-
-      <nav className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-        <Link href="/" className="text-2xl font-black tracking-tight">
-          Share<span className="text-purple-400">Lite</span>
-        </Link>
-
-        <Link
-          href="/login"
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur transition hover:bg-white/20"
+    <main className="sharelite-landing">
+      {/* Background video */}
+      <div className="sharelite-video-bg">
+        <video
+          className="sharelite-bg-video"
+          autoPlay
+          muted
+          loop
+          playsInline
         >
-          Login
-        </Link>
-      </nav>
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4"
+            type="video/mp4"
+          />
+        </video>
 
-      <section className="relative z-10 mx-auto grid min-h-[calc(100vh-100px)] w-full max-w-7xl items-center gap-14 px-6 py-12 lg:grid-cols-2 lg:px-10 lg:py-20">
-        <div>
-          <div className="mb-6 inline-flex rounded-full border border-purple-300/30 bg-purple-400/10 px-4 py-2 text-sm font-medium text-purple-200">
-            AI-powered outreach made simple
+        <div className="sharelite-video-overlay" />
+      </div>
+
+      {/* Header */}
+      <header className="sharelite-header">
+        <Link href="/" className="sharelite-brand">
+          <span className="sharelite-brand-mark">S</span>
+          <span>
+            Share<span>Lite</span>
+          </span>
+        </Link>
+
+        <nav className="sharelite-desktop-nav">
+          <Link className="active" href="/">
+            Home
+          </Link>
+          <Link href="#product">Product</Link>
+          <Link href="#features">Features</Link>
+          <Link href="#contact">Contact</Link>
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <Link
+            href="/plans"
+            className="sharelite-upgrade"
+          >
+            Upgrade
+          </Link>
+
+          <Link
+            href="/login"
+            className="sharelite-login desktop-login"
+          >
+            Login
+          </Link>
+        </div>
+
+        <button
+          type="button"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          className={`sharelite-menu-button ${
+            menuOpen ? "is-open" : ""
+          }`}
+          onClick={() => setMenuOpen((value) => !value)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </header>
+
+      {/* Mobile menu */}
+      {menuOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="sharelite-mobile-overlay"
+            onClick={() => setMenuOpen(false)}
+          />
+
+          <nav className="sharelite-mobile-menu">
+            <Link href="/" onClick={() => setMenuOpen(false)}>
+              Home
+            </Link>
+
+            <Link
+              href="#product"
+              onClick={() => setMenuOpen(false)}
+            >
+              Product
+            </Link>
+
+            <Link
+              href="#features"
+              onClick={() => setMenuOpen(false)}
+            >
+              Features
+            </Link>
+
+            <Link
+              href="#contact"
+              onClick={() => setMenuOpen(false)}
+            >
+              Contact
+            </Link>
+
+            <Link
+              href="/plans"
+              className="sharelite-mobile-upgrade"
+              onClick={() => setMenuOpen(false)}
+            >
+              Upgrade
+            </Link>
+
+            <Link
+              href="/login"
+              className="sharelite-mobile-login"
+              onClick={() => setMenuOpen(false)}
+            >
+              Login
+            </Link>
+          </nav>
+        </>
+      )}
+
+      {/* Hero */}
+      <section className="sharelite-hero" id="product">
+        <div className="sharelite-trust reveal reveal-delay-1">
+          <div className="sharelite-avatar">
+            <span>AI</span>
           </div>
 
-          <h1 className="max-w-3xl text-5xl font-black leading-tight tracking-tight sm:text-6xl lg:text-7xl">
-            Reach more people.
-            <span className="block bg-gradient-to-r from-purple-300 via-fuchsia-300 to-amber-200 bg-clip-text text-transparent">
-              Grow your business.
+          <div className="sharelite-avatar avatar-overlap">
+            <span>✦</span>
+          </div>
+
+          <div className="sharelite-avatar avatar-overlap">
+            <span>SL</span>
+          </div>
+
+          <div className="sharelite-trust-pill">
+            Built for modern business outreach
+          </div>
+        </div>
+
+        <div className="sharelite-hero-copy">
+          <h1 className="sharelite-headline">
+            <span className="headline-line reveal reveal-delay-2">
+              Intelligence
+            </span>
+
+            <span className="headline-line reveal reveal-delay-3">
+              Designed To Evolve
             </span>
           </h1>
 
-          <p className="mt-6 max-w-xl text-lg leading-8 text-white/65">
-            Find leads, validate emails, create better outreach messages and
-            manage your business growth from one powerful workspace.
+          <p className="sharelite-subhead reveal reveal-delay-4">
+            AI-powered outreach made simple. Find leads, validate emails,
+            create better messages and grow your business from one powerful
+            workspace.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Link
-              href="/signup"
-              className="rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-500 px-7 py-4 text-base font-bold shadow-2xl shadow-purple-900/40 transition hover:scale-105 hover:from-purple-400 hover:to-fuchsia-400"
-            >
+          <div className="sharelite-actions reveal reveal-delay-5">
+            <Link href="/signup" className="sharelite-cta">
               Get Started Free
             </Link>
 
-            <span className="text-sm font-medium text-amber-200">
-              5-day free trial
+            <span className="sharelite-trial">
+              12-day free trial
             </span>
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-5 text-sm text-white/55">
-            <span>✓ Smart lead management</span>
-            <span>✓ AI outreach suggestions</span>
-            <span>✓ Email validation</span>
-          </div>
-        </div>
-
-        <div className="relative">
-          <div className="pointer-events-none absolute -inset-8 rounded-full bg-purple-600/20 blur-3xl" />
-
-          <div className="relative rounded-[2rem] border border-white/15 bg-white/[0.08] p-4 shadow-2xl shadow-purple-950/50 backdrop-blur-xl">
-            <div className="rounded-[1.5rem] border border-white/10 bg-[#111020] p-5">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/45">
-                    ShareLite Workspace
-                  </p>
-
-                  <h2 className="mt-1 text-xl font-bold">
-                    Outreach Overview
-                  </h2>
-                </div>
-
-                <div className="rounded-xl bg-purple-500/20 px-3 py-2 text-xl">
-                  ✦
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
-                  <p className="text-xs text-white/45">Total Leads</p>
-                  <p className="mt-2 text-3xl font-black">1,248</p>
-                  <p className="mt-1 text-xs text-emerald-300">+24.8%</p>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
-                  <p className="text-xs text-white/45">Valid Leads</p>
-                  <p className="mt-2 text-3xl font-black">986</p>
-                  <p className="mt-1 text-xs text-emerald-300">+18.2%</p>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/20 to-fuchsia-500/10 p-5">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold">AI Message Assistant</p>
-                  <span className="text-purple-200">✦</span>
-                </div>
-
-                <p className="mt-3 text-sm leading-6 text-white/60">
-                  Create personalized outreach messages that sound natural,
-                  professional and relevant to every lead.
-                </p>
-
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-purple-400 to-fuchsia-400" />
-                </div>
-
-                <p className="mt-2 text-xs text-white/45">
-                  Outreach performance improving
-                </p>
-              </div>
-
-              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.05] p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-orange-500 text-xl">
-                  🚀
-                </div>
-
-                <div>
-                  <p className="font-semibold">Ready to grow?</p>
-                  <p className="text-sm text-white/45">
-                    Start your free trial today.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
+
+      {/* Feature strip */}
+      <section
+        className="sharelite-feature-strip"
+        id="features"
+        aria-label="ShareLite features"
+      >
+        <div>
+          <strong>AI Outreach</strong>
+          <span>Better messages</span>
+        </div>
+
+        <div>
+          <strong>Lead Intelligence</strong>
+          <span>Organize prospects</span>
+        </div>
+
+        <div>
+          <strong>Email Validation</strong>
+          <span>Reach real inboxes</span>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <footer className="sharelite-stats" ref={statsRef}>
+        {stats.map((stat, index) => (
+          <Stat
+            key={stat.label}
+            {...stat}
+            index={index}
+            started={countsStarted}
+          />
+        ))}
+      </footer>
+
+      <div id="contact" className="sharelite-contact-anchor" />
     </main>
+  );
+}
+
+type StatProps = {
+  icon: string;
+  value: number;
+  suffix: string;
+  label: string;
+  index: number;
+  started: boolean;
+};
+
+function Stat({
+  icon,
+  value,
+  suffix,
+  label,
+  index,
+  started,
+}: StatProps) {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!started) return;
+
+    const duration = 1500 + index * 80;
+    const delay = 480 + index * 90;
+
+    let frame = 0;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    timeout = setTimeout(() => {
+      const start = performance.now();
+
+      const animate = (now: number) => {
+        const progress = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+
+        setCurrent(value * eased);
+
+        if (progress < 1) {
+          frame = requestAnimationFrame(animate);
+        }
+      };
+
+      frame = requestAnimationFrame(animate);
+    }, delay);
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      cancelAnimationFrame(frame);
+    };
+  }, [started, value, index]);
+
+  const decimals =
+    value % 1 !== 0 ? 1 : value === 99.99 ? 2 : 0;
+
+  return (
+    <div
+      className="sharelite-stat reveal"
+      style={{
+        animationDelay: `${0.5 + index * 0.08}s`,
+      }}
+    >
+      <div className="sharelite-stat-top">
+        <span className="sharelite-stat-icon">{icon}</span>
+
+        <span className="sharelite-stat-value">
+          {current.toFixed(decimals)}
+        </span>
+
+        <span className="sharelite-stat-suffix">{suffix}</span>
+      </div>
+
+      <span className="sharelite-stat-label">{label}</span>
+    </div>
   );
 }

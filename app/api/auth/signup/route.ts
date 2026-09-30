@@ -1,168 +1,148 @@
 import { NextResponse } from "next/server";
-
-import {
-  accessCookie,
-  refreshCookie,
-  getConfig,
-} from "@/lib/supabase-auth";
-
-import {
-  checkRateLimit,
-  getClientKey,
-  rateLimitResponse,
-} from "@/lib/rate-limit";
+import { createClient } from "@supabase/supabase-js";
 
 function cleanName(value: unknown): string {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value
-    .trim()
-    .replace(/\s+/g, " ")
-    .slice(0, 100);
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function capitalizeName(value: string): string {
-  return value
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => {
-      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-    })
-    .join(" ");
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function getSiteUrl(request: Request): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+
+  if (configured) {
+    return configured.replace(/\/+$/, "");
+  }
+
+  return new URL(request.url).origin;
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(
-    getClientKey(request, "auth-signup"),
-    5
-  );
-
-  if (!rateLimit.allowed) {
-    return rateLimitResponse(rateLimit);
-  }
-
-  const body = await request.json().catch(() => null);
-
-  const firstName = capitalizeName(cleanName(body?.firstName));
-  const lastName = capitalizeName(cleanName(body?.lastName));
-
-  const email =
-    typeof body?.email === "string"
-      ? body.email.trim().toLowerCase()
-      : "";
-
-  const password =
-    typeof body?.password === "string"
-      ? body.password
-      : "";
-
-  if (
-    !firstName ||
-    firstName.length > 100 ||
-    lastName.length > 100 ||
-    !email ||
-    password.length < 8
-  ) {
-    return NextResponse.json(
-      {
-        error:
-          "First name, valid email, and password of at least 8 characters are required.",
-      },
-      { status: 400 }
-    );
-  }
-
-  const fullName = `${firstName} ${lastName}`.trim();
-
   try {
-    const { url, key } = getConfig();
+    const body = await request.json();
 
-    const response = await fetch(`${url}/auth/v1/signup`, {
-      method: "POST",
-      headers: {
-        apikey: key,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email,
-        password,
+    const firstName = capitalizeName(cleanName(body?.firstName));
+    const lastName = capitalizeName(cleanName(body?.lastName));
+    const email = cleanName(body?.email).toLowerCase();
+    const password =
+      typeof body?.password === "string" ? body.password : "";
+
+    if (!firstName) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "First name is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidEmail(email)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Please enter a valid email address.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (password.length < 8) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Password must be at least 8 characters.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Supabase environment variables are missing.");
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Authentication service is unavailable.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(
+      supabaseUrl,
+      supabaseKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
+    const siteUrl = getSiteUrl(request);
+
+    const redirectTo =
+      `${siteUrl}/auth/callback?next=/account-setup`;
+
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectTo,
         data: {
           first_name: firstName,
           last_name: lastName,
           name: fullName,
           full_name: fullName,
         },
-      }),
-      cache: "no-store",
+      },
     });
 
-    const payload = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      console.error("ShareLite signup failed:", {
-        status: response.status,
-        payload,
-      });
-
-      const errorMessage =
-        payload?.msg ||
-        payload?.message ||
-        payload?.error_description ||
-        payload?.error ||
-        "Unable to create account.";
+    if (error) {
+      console.error("Supabase signup error:", error);
 
       return NextResponse.json(
         {
-          error: errorMessage,
-          code: payload?.error_code || null,
+          success: false,
+          message: error.message,
+          code: error.code ?? null,
         },
-        {
-          status:
-            response.status >= 400 && response.status < 500
-              ? response.status
-              : 502,
-        }
+        { status: 400 }
       );
     }
 
-    const result = NextResponse.json({
+    return NextResponse.json({
       success: true,
-      requiresEmailConfirmation: !payload?.access_token,
+      requiresEmailConfirmation: !data.session,
       email,
       firstName,
+      lastName,
+      message: data.session
+        ? "Account created successfully."
+        : "Account created. Please check your email and click the confirmation link.",
     });
-
-    if (payload?.access_token && payload?.refresh_token) {
-      const secure = process.env.NODE_ENV === "production";
-
-      result.cookies.set(accessCookie, payload.access_token, {
-        httpOnly: true,
-        secure,
-        sameSite: "lax",
-        path: "/",
-        maxAge: payload.expires_in ?? 3600,
-      });
-
-      result.cookies.set(refreshCookie, payload.refresh_token, {
-        httpOnly: true,
-        secure,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30,
-      });
-    }
-
-    return result;
   } catch (error) {
-    console.error("ShareLite signup request failed:", error);
+    console.error("Signup error:", error);
 
     return NextResponse.json(
       {
-        error: "Authentication service is unavailable.",
+        success: false,
+        message: "Something went wrong while creating your account.",
       },
-      { status: 503 }
+      { status: 500 }
     );
   }
 }

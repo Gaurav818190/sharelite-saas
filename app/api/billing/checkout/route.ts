@@ -1,77 +1,97 @@
 import { NextResponse } from "next/server";
-
 import { requireAuthenticatedUser } from "@/lib/supabase-db";
-import {
-  checkRateLimit,
-  getClientKey,
-  rateLimitResponse,
-} from "@/lib/rate-limit";
-import {
-  createCheckoutSession,
-  BillingUnavailableError,
-} from "@/lib/billing";
-import type { Plan } from "@/lib/monetization";
+import { createCheckoutSession } from "@/lib/billing";
+import type { Currency, BillingPeriod } from "@/lib/pricing";
 
-const PAID_PLANS: Exclude<Plan, "free">[] = [
-  "starter",
+export const dynamic = "force-dynamic";
+
+const PAID_PLANS = new Set([
   "pro",
   "business",
+  "scale",
   "enterprise",
-];
+  "yearly_unlimited",
+  "ultimate_growth",
+]);
+
+type CheckoutBody = {
+  plan?: string;
+  currency?: Currency;
+  billingPeriod?: BillingPeriod;
+  boost?: boolean;
+};
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(
-    getClientKey(request, "billing-checkout"),
-    10,
-  );
-
-  if (!rateLimit.allowed) {
-    return rateLimitResponse(rateLimit);
-  }
-
   try {
     const { user } = await requireAuthenticatedUser();
 
-    const body = await request.json().catch(() => null);
-    const plan = body?.plan;
+    let body: CheckoutBody = {};
 
-    if (
-      typeof plan !== "string" ||
-      !PAID_PLANS.includes(plan as Exclude<Plan, "free">)
-    ) {
+    try {
+      body = (await request.json()) as CheckoutBody;
+    } catch {
+      body = {};
+    }
+
+    if (body.boost === true) {
       return NextResponse.json(
-        { error: "A valid paid plan is required." },
-        { status: 400 },
+        {
+          error: "Limit Boost payment is not configured yet.",
+        },
+        { status: 501 }
       );
     }
 
-    const url = await createCheckoutSession(
+    const plan = typeof body.plan === "string" ? body.plan : "";
+
+    if (!PAID_PLANS.has(plan)) {
+      return NextResponse.json(
+        {
+          error: "Invalid plan.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const currency: Currency =
+      body.currency === "INR" || body.currency === "USD"
+        ? body.currency
+        : "USD";
+
+    const billingPeriod: BillingPeriod =
+      body.billingPeriod === "yearly"
+        ? "yearly"
+        : "monthly";
+
+    const checkoutUrl = await createCheckoutSession(
       user.id,
-      plan as Exclude<Plan, "free">,
+      plan as Parameters<typeof createCheckoutSession>[1],
+      currency,
+      billingPeriod
     );
 
-    return NextResponse.json({ url });
+    return NextResponse.json({
+      url: checkoutUrl,
+      plan,
+      currency,
+      billingPeriod,
+    });
   } catch (error) {
-    if (
+    const unauthenticated =
       error instanceof Error &&
-      error.message === "UNAUTHENTICATED"
-    ) {
-      return NextResponse.json(
-        { error: "Authentication required." },
-        { status: 401 },
-      );
-    }
+      error.message === "UNAUTHENTICATED";
 
-    if (error instanceof BillingUnavailableError) {
-      return NextResponse.json(
-        { error: "Billing is not configured." },
-        { status: 503 },
-      );
-    }
+    console.error("ShareLite checkout API error", error);
 
     return NextResponse.json(
-      { error: "Unable to start checkout." },
-      { status: 502 },
+      {
+        error: unauthenticated
+          ? "Authentication required."
+          : "Unable to create checkout session.",
+      },
+      {
+        status: unauthenticated ? 401 : 500,
+      }
     );
   }
 }

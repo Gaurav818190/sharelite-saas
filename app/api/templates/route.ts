@@ -1,8 +1,161 @@
 import { NextResponse } from "next/server";
-import { createTemplate, listTemplates } from "@/lib/supabase-workspaces";
-import { requireAuthenticatedUser } from "@/lib/supabase-db";
-import { getCurrentEntitlements, hasCapacity } from "@/lib/monetization";
 
-function input(value: unknown) { if (!value || typeof value !== "object") return null; const b = value as Record<string, unknown>; if (typeof b.name !== "string" || !b.name.trim() || b.name.trim().length > 200 || typeof b.subject !== "string" || !b.subject.trim() || b.subject.trim().length > 300 || typeof b.body !== "string" || !b.body.trim() || b.body.trim().length > 20000) return null; return { name: b.name.trim(), subject: b.subject.trim(), body: b.body.trim() }; }
-export async function GET() { try { const { accessToken } = await requireAuthenticatedUser(); return NextResponse.json({ templates: await listTemplates(accessToken) }); } catch (e) { return NextResponse.json({ error: e instanceof Error && e.message === "UNAUTHENTICATED" ? "Authentication required." : "Unable to load templates." }, { status: e instanceof Error && e.message === "UNAUTHENTICATED" ? 401 : 500 }); } }
-export async function POST(request: Request) { try { const { user, accessToken } = await requireAuthenticatedUser(); const data = input(await request.json().catch(() => null)); if (!data) return NextResponse.json({ error: "Invalid template data." }, { status: 400 }); const entitlements = await getCurrentEntitlements(accessToken, user.id); if (!hasCapacity(entitlements.plan, "templates", entitlements.usage.templates)) return NextResponse.json({ error: "Template limit reached for your plan." }, { status: 403 }); return NextResponse.json({ template: await createTemplate(accessToken, user.id, data) }, { status: 201 }); } catch (e) { return NextResponse.json({ error: e instanceof Error && e.message === "UNAUTHENTICATED" ? "Authentication required." : "Unable to create template." }, { status: e instanceof Error && e.message === "UNAUTHENTICATED" ? 401 : 500 }); } }
+import {
+  createTemplate,
+  listTemplates,
+} from "@/lib/supabase-workspaces";
+
+import { requireAuthenticatedUser } from "@/lib/supabase-db";
+
+import {
+  getCurrentEntitlements,
+  hasCapacity,
+} from "@/lib/monetization";
+
+type TemplateInput = {
+  name: string;
+  subject: string;
+  body: string;
+};
+
+function parseTemplateInput(value: unknown): TemplateInput | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const data = value as Record<string, unknown>;
+
+  if (
+    typeof data.name !== "string" ||
+    typeof data.subject !== "string" ||
+    typeof data.body !== "string"
+  ) {
+    return null;
+  }
+
+  const name = data.name.trim();
+  const subject = data.subject.trim();
+  const body = data.body.trim();
+
+  if (!name || name.length > 200) {
+    return null;
+  }
+
+  if (!subject || subject.length > 300) {
+    return null;
+  }
+
+  if (!body || body.length > 20_000) {
+    return null;
+  }
+
+  return {
+    name,
+    subject,
+    body,
+  };
+}
+
+function isUnauthenticated(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message === "UNAUTHENTICATED"
+  );
+}
+
+export async function GET() {
+  try {
+    const { accessToken } = await requireAuthenticatedUser();
+
+    const templates = await listTemplates(accessToken);
+
+    return NextResponse.json({
+      templates,
+    });
+  } catch (error) {
+    if (isUnauthenticated(error)) {
+      return NextResponse.json(
+        {
+          error: "Authentication required.",
+        },
+        { status: 401 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error: "Unable to load templates.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const { user, accessToken } =
+      await requireAuthenticatedUser();
+
+    const rawBody = await request.json().catch(() => null);
+    const data = parseTemplateInput(rawBody);
+
+    if (!data) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid template data. Check the name, subject, and body.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const entitlements = await getCurrentEntitlements(
+      accessToken,
+      user.id,
+    );
+
+    const hasTemplateCapacity = hasCapacity(
+      entitlements.plan,
+      "templates",
+      entitlements.usage.templates,
+    );
+
+    if (!hasTemplateCapacity) {
+      return NextResponse.json(
+        {
+          error: "Template limit reached for your plan.",
+        },
+        { status: 403 },
+      );
+    }
+
+    const template = await createTemplate(
+      accessToken,
+      user.id,
+      data,
+    );
+
+    return NextResponse.json(
+      {
+        template,
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    if (isUnauthenticated(error)) {
+      return NextResponse.json(
+        {
+          error: "Authentication required.",
+        },
+        { status: 401 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error: "Unable to create template.",
+      },
+      { status: 500 },
+    );
+  }
+}

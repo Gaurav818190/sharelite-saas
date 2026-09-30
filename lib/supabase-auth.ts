@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const accessCookie = "sharelite-access-token";
 const refreshCookie = "sharelite-refresh-token";
@@ -10,19 +11,23 @@ function baseUrl(): string {
     throw new Error("Supabase authentication is not configured.");
   }
 
-  return url.replace(/\/$/, "");
+  return url.replace(/\/+$/, "");
 }
 
-function getConfig() {
+function getAnonKey(): string {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!key) {
     throw new Error("Supabase authentication is not configured.");
   }
 
+  return key;
+}
+
+export function getConfig() {
   return {
     url: baseUrl(),
-    key,
+    key: getAnonKey(),
   };
 }
 
@@ -42,6 +47,7 @@ export function getServiceRoleConfig() {
 export type AuthUser = {
   id: string;
   email?: string;
+  user_metadata?: Record<string, unknown>;
 };
 
 export type AuthSession = {
@@ -53,6 +59,20 @@ export type RefreshedSession = AuthSession & {
   refreshToken: string;
   expiresIn: number;
 };
+
+export function createSupabaseBrowserClient() {
+  return createClient(baseUrl(), getAnonKey());
+}
+
+export function createSupabaseServerClient(): SupabaseClient {
+  return createClient(baseUrl(), getAnonKey(), {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
 
 export async function getCurrentSession(): Promise<AuthSession | null> {
   const cookieStore = await cookies();
@@ -86,7 +106,7 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
 }
 
 export async function refreshSession(
-  refreshToken: string
+  refreshToken: string,
 ): Promise<RefreshedSession | null> {
   const { url, key } = getConfig();
 
@@ -102,7 +122,7 @@ export async function refreshSession(
         refresh_token: refreshToken,
       }),
       cache: "no-store",
-    }
+    },
   );
 
   if (!response.ok) {
@@ -152,5 +172,4 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 export {
   accessCookie,
   refreshCookie,
-  getConfig,
 };

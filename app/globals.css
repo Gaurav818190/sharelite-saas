@@ -5,6 +5,16 @@
   --foreground: #171717;
 }
 
+/* =========================================================
+   SHARELITE GLOBAL DISPLAY SCALE
+   ========================================================= */
+
+html {
+  font-size: 17px;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -23,8 +33,16 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-/* Clickable elements par hand cursor */
+
+/* =========================================================
+   GLOBAL FORM / CONTROL READABILITY
+   ========================================================= */
+
 button,
 a,
 [role="button"],
@@ -37,14 +55,30 @@ summary,
   cursor: pointer;
 }
 
-/* Disabled buttons par normal disabled cursor */
 button:disabled,
 [aria-disabled="true"],
 input:disabled,
 select:disabled {
   cursor: not-allowed;
 }
-/* Prevent copying sidebar navigation text */
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  font-size: 1rem;
+}
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
 .sidebar-no-copy {
   user-select: none;
   -webkit-user-select: none;
@@ -52,10 +86,750 @@ select:disabled {
   -ms-user-select: none;
 }
 
-/* Keep sidebar text non-selectable */
 .sidebar-no-copy *,
 .sidebar-no-copy a,
 .sidebar-no-copy button {
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* =========================================================
+   SHARELITE MOTION LANDING
+   ========================================================= */
+
+@font-face {
+  font-family: "Geist Pixel Circle";
+  src: url("/fonts/GeistPixel-Circle.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.sharelite-landing {
+  --sl-bg: #000000;
+  --sl-white: #ffffff;
+  --sl-muted: #8e8e8e;
+  --sl-dark: #28282a;
+  --sl-font: "Inter", "Segoe UI", system-ui, sans-serif;
+  --sl-display: "BubbledotICG-FinePos", "Geist Pixel Circle", monospace;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  padding: clamp(14px, 2.4vh, 28px) clamp(14px, 3vw, 32px);
+  overflow: hidden;
+  isolation: isolate;
+  background: #000;
+  color: #fff;
+  font-family: var(--sl-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.sharelite-video-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.sharelite-bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.sharelite-video-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.34);
+  pointer-events: none;
+}
+
+.sharelite-header,
+.sharelite-hero,
+.sharelite-stats,
+.sharelite-feature-strip {
+  position: relative;
+  z-index: 2;
+}
+
+.sharelite-header {
+  flex-shrink: 0;
+  width: min(720px, 100%);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 2.8vw, 28px);
+  animation: slSlideDown 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sharelite-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+}
+
+.sharelite-brand > span:last-child > span {
+  color: #c4a7ff;
+}
+
+.sharelite-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  color: #000;
+  font-family: var(--sl-display);
+  font-size: 19px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.sharelite-desktop-nav {
+  flex: 1;
+  max-width: 430px;
+  height: 48px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.sharelite-desktop-nav a {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2e2e2e;
+  text-decoration: none;
+  font-size: clamp(13px, 1.4vw, 15px);
+  font-weight: 500;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.sharelite-desktop-nav a:hover {
+  opacity: 0.75;
+}
+
+.sharelite-desktop-nav a.active {
+  opacity: 1;
+}
+
+.sharelite-desktop-nav a.active::after {
+  content: "";
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #000;
+  box-shadow: -5px 0 #000, 5px 0 #000;
+  transform: translateX(-50%);
+}
+
+.sharelite-login {
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: #28282a;
+  color: #c8c8c8;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.sharelite-login:hover {
+  background: #323234;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.sharelite-menu-button {
+  display: none;
+}
+
+.sharelite-hero {
+  flex: 1;
+  min-height: 0;
+  width: min(900px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.sharelite-trust {
+  display: flex;
+  align-items: center;
+  margin-bottom: clamp(16px, 2.5vh, 26px);
+}
+
+.sharelite-avatar {
+  position: relative;
+  z-index: 1;
+  width: clamp(36px, 4.5vw, 42px);
+  height: clamp(36px, 4.5vw, 42px);
+  flex: 0 0 clamp(36px, 4.5vw, 42px);
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  background: #28282a;
+  transition: transform 0.35s ease;
+}
+
+.sharelite-avatar span {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sharelite-avatar:nth-child(2):hover {
+  transform: translateY(-4px);
+}
+
+.sharelite-avatar:nth-child(3):hover {
+  transform: translateY(-2px);
+}
+
+.avatar-overlap {
+  margin-left: -18px;
+}
+
+.sharelite-trust-pill {
+  z-index: 4;
+  height: clamp(36px, 4.5vw, 42px);
+  margin-left: -18px;
+  padding: 0 24px 0 25px;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  background: #28282a;
+  color: #c4c2c3;
+  font-size: clamp(11px, 1.4vw, 13px);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sharelite-headline {
+  margin: 0;
+  color: #fff;
+  font-family: var(--sl-display);
+  font-size: clamp(32px, 6.2vw, 80px);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.headline-line {
+  display: block;
+}
+
+.sharelite-subhead {
+  width: min(560px, 92%);
+  margin: clamp(16px, 2vh, 22px) auto 0;
+  color: #d0d0d0;
+  opacity: 0.82;
+  font-size: clamp(14px, 1.55vw, 18px);
+  line-height: 1.55;
+  font-weight: 400;
+}
+
+.sharelite-actions {
+  margin-top: clamp(20px, 2.8vh, 28px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.sharelite-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 28px;
+  border-radius: 999px;
+  background: #fff;
+  color: #000;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.15),
+    0 0 22px rgba(255, 255, 255, 0.32),
+    0 0 44px rgba(255, 255, 255, 0.12);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.sharelite-cta:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.2),
+    0 0 30px rgba(255, 255, 255, 0.45),
+    0 0 60px rgba(255, 255, 255, 0.18);
+}
+
+.sharelite-trial {
+  color: #f5d58c;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sharelite-feature-strip {
+  width: min(760px, 100%);
+  margin: 0 auto 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.sharelite-feature-strip > div {
+  text-align: center;
+}
+
+.sharelite-feature-strip strong {
+  display: block;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sharelite-feature-strip span {
+  display: block;
+  margin-top: 3px;
+  color: #8e8e8e;
+  font-size: 10px;
+}
+
+.sharelite-stats {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(16px, 3vw, 40px);
+  padding-top: 10px;
+}
+
+.sharelite-stat {
+  min-width: 0;
+  text-align: center;
+}
+
+.sharelite-stat-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+}
+
+.sharelite-stat-icon {
+  color: #fff;
+  font-family: var(--sl-display);
+  font-size: clamp(22px, 3vw, 33px);
+  line-height: 1;
+}
+
+.sharelite-stat-value {
+  color: #fff;
+  font-size: clamp(18px, 2.2vw, 26px);
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+
+.sharelite-stat-suffix {
+  color: #fff;
+  font-size: 12px;
+}
+
+.sharelite-stat-label {
+  display: block;
+  margin-top: 5px;
+  color: #8e8e8e;
+  font-size: 12px;
+}
+
+.sharelite-contact-anchor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(22px) scale(0.98);
+  filter: blur(6px);
+  animation: slReveal 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.reveal-delay-1 {
+  animation-delay: 0.05s;
+}
+
+.reveal-delay-2 {
+  animation-delay: 0.12s;
+}
+
+.reveal-delay-3 {
+  animation-delay: 0.3s;
+}
+
+.reveal-delay-4 {
+  animation-delay: 0.4s;
+}
+
+.reveal-delay-5 {
+  animation-name: slRevealPulse;
+  animation-delay: 0.5s;
+}
+
+@keyframes slReveal {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes slRevealPulse {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.94);
+    filter: blur(6px);
+  }
+
+  65% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.025);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes slSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sharelite-mobile-overlay,
+.sharelite-mobile-menu {
+  display: none;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 720px) {
+  html {
+    font-size: 16px;
+  }
+
+  .sharelite-landing {
+    padding: 12px 14px;
+  }
+
+  .sharelite-header {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .sharelite-brand {
+    font-size: 19px;
+  }
+
+  .sharelite-brand-mark {
+    width: 42px;
+    height: 42px;
+  }
+
+  .sharelite-desktop-nav,
+  .desktop-login {
+    display: none;
+  }
+
+  .sharelite-menu-button {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: #28282a;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  }
+
+  .sharelite-menu-button span {
+    position: absolute;
+    width: 18px;
+    height: 1.5px;
+    border-radius: 2px;
+    background: #fff;
+    transition:
+      transform 0.25s ease,
+      opacity 0.25s ease,
+      background 0.25s ease;
+  }
+
+  .sharelite-menu-button span:nth-child(1) {
+    transform: translateY(-6px);
+  }
+
+  .sharelite-menu-button span:nth-child(3) {
+    transform: translateY(6px);
+  }
+
+  .sharelite-menu-button.is-open {
+    background: #fff;
+  }
+
+  .sharelite-menu-button.is-open span {
+    background: #000;
+  }
+
+  .sharelite-menu-button.is-open span:nth-child(1) {
+    transform: rotate(45deg);
+  }
+
+  .sharelite-menu-button.is-open span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .sharelite-menu-button.is-open span:nth-child(3) {
+    transform: rotate(-45deg);
+  }
+
+  .sharelite-mobile-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: block;
+    border: 0;
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .sharelite-mobile-menu {
+    position: fixed;
+    top: 74px;
+    left: 14px;
+    right: 14px;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 22px 18px 20px;
+    border-radius: 28px;
+    background: #fff;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    animation: slMenuIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .sharelite-mobile-menu a {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    border-radius: 16px;
+    color: #2e2e2e;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .sharelite-mobile-menu a:hover {
+    background: #f2f2f2;
+  }
+
+  .sharelite-mobile-login {
+    margin-top: 8px;
+    justify-content: center;
+    background: #28282a;
+    color: #fff !important;
+  }
+
+  .sharelite-trust {
+    --trust-size: 34px;
+    margin-bottom: 14px;
+  }
+
+  .sharelite-trust-pill {
+    max-width: 230px;
+    overflow: hidden;
+    padding: 0 16px 0 18px;
+    font-size: 11px;
+    text-overflow: ellipsis;
+  }
+
+  .sharelite-headline {
+    font-size: clamp(31px, 8.8vw, 58px);
+    letter-spacing: -0.08em;
+    line-height: 1.05;
+  }
+
+  .sharelite-subhead {
+    width: 94%;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .sharelite-actions {
+    margin-top: 18px;
+  }
+
+  .sharelite-feature-strip {
+    margin-bottom: 4px;
+  }
+
+  .sharelite-feature-strip strong {
+    font-size: 10px;
+  }
+
+  .sharelite-feature-strip span {
+    font-size: 9px;
+  }
+
+  .sharelite-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px 18px;
+  }
+}
+
+@media (max-width: 420px) {
+  .sharelite-headline {
+    font-size: clamp(29px, 10.2vw, 46px);
+    letter-spacing: -0.09em;
+    line-height: 1.04;
+  }
+
+  .sharelite-trust-pill {
+    font-size: 10px;
+  }
+
+  .sharelite-subhead {
+    font-size: 14px;
+  }
+
+  .sharelite-actions {
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .sharelite-feature-strip {
+    gap: 6px;
+  }
+
+  .sharelite-feature-strip strong {
+    font-size: 9px;
+  }
+
+  .sharelite-feature-strip span {
+    display: none;
+  }
+}
+
+@media (max-height: 700px) {
+  .sharelite-trust {
+    margin-bottom: 10px;
+  }
+
+  .sharelite-subhead {
+    margin-top: 10px;
+  }
+
+  .sharelite-actions {
+    margin-top: 14px;
+  }
+
+  .sharelite-feature-strip {
+    margin-bottom: 0;
+  }
+
+  .sharelite-stats {
+    padding-top: 5px;
+  }
+}
+
+@keyframes slMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sharelite-landing *,
+  .sharelite-landing *::before,
+  .sharelite-landing *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
 }

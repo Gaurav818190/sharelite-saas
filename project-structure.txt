@@ -1,0 +1,154 @@
+Folder PATH listing for volume New Volume
+Volume serial number is 00000036 424A:DB1D
+D:\AI-BILLIONAIRE-PROJECT\SHARELITE-NEW\APP
+³   AuthProviderButtons.tsx
+³   DashboardClient.tsx
+³   favicon.ico
+³   globals.css
+³   LandingPage.tsx
+³   layout.tsx
+³   page.tsx
+³   ReviewsPanel.tsx
+³   WorkspacePanels.tsx
+³   
+ÃÄÄÄaccount-setup
+³       page.tsx
+³       
+ÃÄÄÄapi
+³   ÃÄÄÄanalytics
+³   ³       route.ts
+³   ³       
+³   ÃÄÄÄauth
+³   ³   ÃÄÄÄcallback
+³   ³   ³       route.ts
+³   ³   ³       
+³   ³   ÃÄÄÄlogin
+³   ³   ³       route.ts
+³   ³   ³       
+³   ³   ÃÄÄÄlogout
+³   ³   ³       route.ts
+³   ³   ³       
+³   ³   ÃÄÄÄoauth
+³   ³   ³   ³   route.ts
+³   ³   ³   ³   
+³   ³   ³   ÀÄÄÄcallback
+³   ³   ³           route.ts
+³   ³   ³           
+³   ³   ÃÄÄÄrefresh
+³   ³   ³       route.ts
+³   ³   ³       
+³   ³   ÃÄÄÄresend-otp
+³   ³   ³       route.ts
+³   ³   ³       
+³   ³   ÃÄÄÄsignup
+³   ³   ³       route.ts
+³   ³   ³       
+³   ³   ÀÄÄÄverify-otp
+³   ³           route.ts
+³   ³           
+³   ÃÄÄÄbilling
+³   ³   ÃÄÄÄcheckout
+³   ³   ³       route.ts
+³   ³   ³       
+³   ³   ÀÄÄÄwebhook
+³   ³           route.ts
+³   ³           
+³   ÃÄÄÄcampaigns
+³   ³   ³   route.ts
+³   ³   ³   
+³   ³   ÀÄÄÄ[id]
+³   ³       ³   route.ts
+³   ³       ³   
+³   ³       ÃÄÄÄdeliveries
+³   ³       ³       route.ts
+³   ³       ³       
+³   ³       ÀÄÄÄsend
+³   ³               route.ts
+³   ³               
+³   ÃÄÄÄemail-worker
+³   ³       route.ts
+³   ³       
+³   ÃÄÄÄinboxes
+³   ³   ³   route.ts
+³   ³   ³   
+³   ³   ÃÄÄÄgoogle
+³   ³   ³   ÃÄÄÄcallback
+³   ³   ³   ³       route.ts
+³   ³   ³   ³       
+³   ³   ³   ÀÄÄÄconnect
+³   ³   ³           route.ts
+³   ³   ³           
+³   ³   ÀÄÄÄ[id]
+³   ³       ³   route.ts
+³   ³       ³   
+³   ³       ÃÄÄÄdisconnect
+³   ³       ³       route.ts
+³   ³       ³       
+³   ³       ÃÄÄÄmessages
+³   ³       ³       route.ts
+³   ³       ³       
+³   ³       ÀÄÄÄsend
+³   ³               route.ts
+³   ³               
+³   ÃÄÄÄleads
+³   ³   ³   route.ts
+³   ³   ³   
+³   ³   ÃÄÄÄimport
+³   ³   ³       route.ts
+³   ³   ³       
+³   ³   ÀÄÄÄ[id]
+³   ³       ³   route.ts
+³   ³       ³   
+³   ³       ÃÄÄÄai-message
+³   ³       ³       route.ts
+³   ³       ³       
+³   ³       ÃÄÄÄsend
+³   ³       ³       route.ts
+³   ³       ³       
+³   ³       ÀÄÄÄvalidate
+³   ³               route.ts
+³   ³               
+³   ÃÄÄÄprofile
+³   ³       route.ts
+³   ³       
+³   ÃÄÄÄreviews
+³   ³   ³   route.ts
+³   ³   ³   
+³   ³   ÀÄÄÄ[id]
+³   ³           route.ts
+³   ³           
+³   ÃÄÄÄsubscription
+³   ³       route.ts
+³   ³       
+³   ÃÄÄÄtemplates
+³   ³   ³   route.ts
+³   ³   ³   
+³   ³   ÀÄÄÄ[id]
+³   ³           route.ts
+³   ³           
+³   ÀÄÄÄwebhooks
+³       ÀÄÄÄresend
+³               route.ts
+³               
+ÃÄÄÄdashboard
+³       middleware.ts
+³       page.tsx
+³       
+ÃÄÄÄlogin
+³       LoginForm.tsx
+³       page.tsx
+³       
+ÃÄÄÄplans
+³       page.tsx
+³       
+ÃÄÄÄsettings
+³       page.tsx
+³       
+ÃÄÄÄsignup
+³       page.tsx
+³       SignupForm.tsx
+³       
+ÀÄÄÄverify-email
+        page.tsx
+        VerifyEmailClient.tsx
+        

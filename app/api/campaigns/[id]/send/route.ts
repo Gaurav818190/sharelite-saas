@@ -1,371 +1,362 @@
 import { NextResponse } from "next/server";
+import { enqueueEmailJob } from "@/lib/email-queue";
 import {
-  requireAuthenticatedUser,
-  updateLead,
-  listLeads,
-} from "@/lib/supabase-db";
-import {
-  checkRateLimit,
-  getClientKey,
-  rateLimitResponse,
-} from "@/lib/rate-limit";
-import {
-  consumeEmailSend,
-  getCurrentEntitlements,
-} from "@/lib/monetization";
-import {
-  EmailProviderRateLimitError,
-  EmailProviderTemporaryError,
-  EmailProviderUnavailableError,
-  isEmailProviderConfigured,
-  sendEmail,
-} from "@/lib/email-sending";
-import {
-  createCampaignDelivery,
   getCampaign,
+  getCampaignDelivery,
   getTemplate,
-  listCampaignDeliveries,
   updateCampaignDelivery,
 } from "@/lib/supabase-workspaces";
+import {
+  getLead,
+  requireAuthenticatedUser,
+} from "@/lib/supabase-db";
 
-type Context = {
-  params: Promise<{ id: string }>;
+type SendInput = {
+  deliveryId?: string;
+  subject?: string;
+  message?: string;
+  inboxId?: string;
 };
 
-function safeText(value: string, max: number) {
-  return value
-    .replace(/[\u0000-\u001f\u007f]/g, "")
-    .trim()
-    .slice(0, max);
+type ConnectedInbox = {
+  id: string;
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  provider: string;
+  status: string;
+  access_token: string;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  daily_send_limit: number | null;
+  daily_sent_count: number | null;
+  daily_count_date: string | null;
+  last_sent_at: string | null;
+};
+
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+function getTodayUtc() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getDailyCount(inbox: ConnectedInbox) {
+  if (inbox.daily_count_date !== getTodayUtc()) {
+    return 0;
+  }
+
+  return Number(inbox.daily_sent_count ?? 0);
+}
+
+function getDailyLimit(inbox: ConnectedInbox) {
+  const limit = Number(inbox.daily_send_limit ?? 0);
+
+  return limit > 0 ? limit : 100;
+}
+
+async function getConnectedInbox(
+  accessToken: string,
+  userId: string,
+  inboxId: string
+): Promise<ConnectedInbox | null> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error(
+      "Supabase server configuration is missing."
+    );
+  }
+
+  const query = new URLSearchParams({
+    select:
+      "id,user_id,email,display_name,provider,status,access_token,refresh_token,token_expires_at,daily_send_limit,daily_sent_count,daily_count_date,last_sent_at",
+    user_id: `eq.${userId}`,
+    id: `eq.${inboxId}`,
+    limit: "1",
+  });
+
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/connected_inboxes?${query.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+
+    throw new Error(
+      `Unable to load connected inbox (${response.status}): ${body.slice(
+        0,
+        500
+      )}`
+    );
+  }
+
+  const rows =
+    (await response.json()) as ConnectedInbox[];
+
+  return rows[0] ?? null;
 }
 
 export async function POST(
   request: Request,
-  context: Context,
-) {
-  const rateLimit = checkRateLimit(
-    getClientKey(request, "campaign-send"),
-    5,
-  );
-
-  if (!rateLimit.allowed) {
-    return rateLimitResponse(rateLimit);
+  context: {
+    params: Promise<{ id: string }>;
   }
+) {
+  let deliveryId: string | undefined;
 
   try {
-    const { user, accessToken } =
-      await requireAuthenticatedUser();
+    const auth = await requireAuthenticatedUser();
+    const user = auth.user;
 
-    const { id } = await context.params;
+    const { id: campaignId } = await context.params;
+
+    const input = (await request.json()) as SendInput;
+
+    deliveryId = input.deliveryId;
+
+    if (!campaignId) {
+      return NextResponse.json(
+        {
+          error: "Campaign ID is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!deliveryId) {
+      return NextResponse.json(
+        {
+          error: "Delivery ID is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!input.inboxId) {
+      return NextResponse.json(
+        {
+          error:
+            "Please select a Gmail inbox first.",
+        },
+        { status: 400 }
+      );
+    }
 
     const campaign = await getCampaign(
-      accessToken,
-      id,
+      auth.accessToken,
+      campaignId
     );
 
     if (!campaign) {
       return NextResponse.json(
-        { error: "Campaign not found." },
-        { status: 404 },
-      );
-    }
-
-    if (campaign.status !== "active") {
-      return NextResponse.json(
         {
-          error:
-            "Only active campaigns can be sent.",
+          error: "Campaign not found.",
         },
-        { status: 409 },
+        { status: 404 }
       );
     }
 
-    if (!campaign.template_id) {
-      return NextResponse.json(
-        {
-          error:
-            "Campaign template is required.",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (!isEmailProviderConfigured()) {
-      return NextResponse.json(
-        {
-          error:
-            "Email sending is not configured.",
-        },
-        { status: 503 },
-      );
-    }
-
-    const template = await getTemplate(
-      accessToken,
-      campaign.template_id,
+    const delivery = await getCampaignDelivery(
+      auth.accessToken,
+      deliveryId
     );
 
-    if (!template) {
+    if (!delivery) {
       return NextResponse.json(
         {
           error:
-            "Campaign template not found.",
+            "Campaign delivery not found.",
         },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
-    const [
-      leads,
-      existing,
-      entitlements,
-    ] = await Promise.all([
-      listLeads(accessToken),
-      listCampaignDeliveries(
-        accessToken,
-        id,
-      ),
-      getCurrentEntitlements(
-        accessToken,
-        user.id,
-      ),
-    ]);
+    if (delivery.campaign_id !== campaignId) {
+      return NextResponse.json(
+        {
+          error:
+            "Delivery does not belong to this campaign.",
+        },
+        { status: 400 }
+      );
+    }
 
-    const userLeads = leads.filter(
-      (lead) =>
-        lead.user_id === user.id &&
-        lead.validation_status === "valid" &&
-        lead.status !== "converted",
+    const inbox = await getConnectedInbox(
+      auth.accessToken,
+      user.id,
+      input.inboxId
     );
 
-    const sentLeadIds = new Set(
-      existing
-        .filter(
-          (delivery) =>
-            delivery.status === "accepted" ||
-            delivery.status === "sending",
+    if (!inbox) {
+      return NextResponse.json(
+        {
+          error:
+            "Selected Gmail inbox was not found.",
+        },
+        { status: 404 }
+      );
+    }
+
+    if (inbox.provider !== "google") {
+      return NextResponse.json(
+        {
+          error:
+            "Selected inbox is not a Google inbox.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (inbox.status !== "active") {
+      return NextResponse.json(
+        {
+          error:
+            "Selected Gmail inbox is not active. Please reconnect it.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const dailyCount = getDailyCount(inbox);
+    const dailyLimit = getDailyLimit(inbox);
+
+    if (dailyCount >= dailyLimit) {
+      return NextResponse.json(
+        {
+          error: `Daily sending limit reached for ${inbox.email}.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    const lead = await getLead(
+      auth.accessToken,
+      delivery.lead_id
+    );
+
+    if (!lead) {
+      return NextResponse.json(
+        {
+          error: "Lead not found.",
+        },
+        { status: 404 }
+      );
+    }
+
+    if (
+      lead.validation_status !== "valid" ||
+      !lead.email ||
+      !lead.email.includes("@")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This lead does not have a valid email address.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const template = campaign.template_id
+      ? await getTemplate(
+          auth.accessToken,
+          campaign.template_id
         )
-        .map(
-          (delivery) => delivery.lead_id,
-        ),
-    );
+      : null;
 
-    const pendingLeads = userLeads.filter(
-      (lead) =>
-        !sentLeadIds.has(lead.id),
-    );
+    const subject =
+      delivery.email_subject?.trim() ||
+      input.subject?.trim() ||
+      template?.subject?.trim() ||
+      "Hello from ShareLite";
 
-    const campaignLimit =
-      entitlements.limits.campaignEmails;
+    const message =
+      delivery.email_body?.trim() ||
+      input.message?.trim() ||
+      template?.body?.trim() ||
+      "";
 
-    const selectedCount =
-      pendingLeads.length;
-
-    if (selectedCount > campaignLimit) {
-  const recommendedPlan =
-    selectedCount <= 250
-      ? "Business"
-      : selectedCount <= 500
-        ? "Scale"
-        : selectedCount <= 1000
-          ? "Enterprise"
-          : null;
-
-  const recommendedLimit =
-    recommendedPlan === "Business"
-      ? 250
-      : recommendedPlan === "Scale"
-        ? 500
-        : recommendedPlan === "Enterprise"
-          ? 1000
-          : null;
-
-  const upgradeMessage =
-    recommendedPlan && recommendedLimit
-      ? `Upgrade to ${recommendedPlan} to send up to ${recommendedLimit} emails per campaign.`
-      : "Please split your campaign into batches of 1000 emails or fewer.";
-
-  return NextResponse.json(
-    {
-      error: `Your ${entitlements.plan} plan allows up to ${campaignLimit} emails per campaign. You selected: ${selectedCount} emails. ${upgradeMessage}`,
-      code: "CAMPAIGN_EMAIL_LIMIT_EXCEEDED",
-      plan: entitlements.plan,
-      allowed: campaignLimit,
-      selected: selectedCount,
-    },
-    { status: 403 },
-  );
-}
-    const results: Array<{
-      leadId: string;
-      status: "accepted" | "failed";
-      error?: string;
-    }> = [];
-
-    for (const lead of pendingLeads) {
-      const delivery =
-        await createCampaignDelivery(
-          accessToken,
-          {
-            campaign_id: id,
-            lead_id: lead.id,
-            user_id: user.id,
-          },
-        );
-
-      if (!delivery) {
-        continue;
-      }
-
-      await updateCampaignDelivery(
-        accessToken,
-        delivery.id,
+    if (!message) {
+      return NextResponse.json(
         {
-          status: "sending",
+          error:
+            "Email message cannot be empty.",
         },
+        { status: 400 }
       );
-
-      try {
-        const hasEmailCapacity =
-          await consumeEmailSend(
-            accessToken,
-          );
-
-        if (!hasEmailCapacity) {
-          await updateCampaignDelivery(
-            accessToken,
-            delivery.id,
-            {
-              status: "failed",
-              error_code:
-                "QUOTA_EXCEEDED",
-              error_message:
-                "Monthly email sending limit reached.",
-            },
-          );
-
-          results.push({
-            leadId: lead.id,
-            status: "failed",
-            error:
-              "Monthly email sending limit reached.",
-          });
-
-          break;
-        }
-
-        const result = await sendEmail({
-          to: lead.email,
-          subject: safeText(
-            template.subject,
-            200,
-          ),
-          text: safeText(
-            template.body,
-            50000,
-          ),
-        });
-
-        await updateCampaignDelivery(
-          accessToken,
-          delivery.id,
-          {
-            status: "accepted",
-            provider_message_id:
-              result.providerMessageId,
-            sent_at:
-              new Date().toISOString(),
-          },
-        );
-
-        await updateLead(
-          accessToken,
-          lead.id,
-          {
-            status: "contacted",
-          },
-        );
-
-        results.push({
-          leadId: lead.id,
-          status: "accepted",
-        });
-      } catch (error) {
-        const errorCode =
-          error instanceof
-          EmailProviderRateLimitError
-            ? "PROVIDER_RATE_LIMITED"
-            : error instanceof
-                EmailProviderUnavailableError
-              ? "PROVIDER_UNAVAILABLE"
-              : "PROVIDER_FAILURE";
-
-        const message =
-          error instanceof
-          EmailProviderRateLimitError
-            ? "Email provider rate limit reached."
-            : error instanceof
-                EmailProviderUnavailableError
-              ? "Email sending is not configured."
-              : error instanceof
-                  EmailProviderTemporaryError
-                ? "Email provider is temporarily unavailable."
-                : "Unable to send email.";
-
-        await updateCampaignDelivery(
-          accessToken,
-          delivery.id,
-          {
-            status: "failed",
-            error_code: errorCode,
-            error_message: message,
-          },
-        );
-
-        results.push({
-          leadId: lead.id,
-          status: "failed",
-          error: message,
-        });
-
-        if (
-          error instanceof
-            EmailProviderUnavailableError ||
-          error instanceof
-            EmailProviderRateLimitError
-        ) {
-          break;
-        }
-      }
     }
 
-    return NextResponse.json({
-      accepted: results.filter(
-        (result) =>
-          result.status === "accepted",
-      ).length,
-      failed: results.filter(
-        (result) =>
-          result.status === "failed",
-      ).length,
-      results,
-    });
-  } catch (error) {
-    const unauthenticated =
-      error instanceof Error &&
-      error.message === "UNAUTHENTICATED";
+    /*
+     * Save the final subject/body before creating
+     * the queue job so the background worker can
+     * send exactly the content selected here.
+     */
+    const existingSubject =
+      delivery.email_subject?.trim() ?? "";
+
+    const existingBody =
+      delivery.email_body?.trim() ?? "";
+
+    if (
+      existingSubject !== subject ||
+      existingBody !== message
+    ) {
+      await updateCampaignDelivery(
+        auth.accessToken,
+        deliveryId,
+        {
+          email_subject: subject,
+          email_body: message,
+        }
+      );
+    }
+
+    const job = await enqueueEmailJob(
+      auth.accessToken,
+      {
+        userId: user.id,
+        campaignId,
+        deliveryId,
+        inboxId: input.inboxId,
+      }
+    );
 
     return NextResponse.json(
       {
-        error: unauthenticated
-          ? "Authentication required."
-          : "Unable to send campaign.",
+        success: true,
+        queued: true,
+        message:
+          "Email has been added to the sending queue.",
+        jobId: job.id,
+        inboxId: input.inboxId,
+        subject,
       },
+      { status: 202 }
+    );
+  } catch (error) {
+    console.error(
+      "Campaign queue error:",
+      error
+    );
+
+    return NextResponse.json(
       {
-        status: unauthenticated
-          ? 401
-          : 500,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to queue campaign email.",
       },
+      { status: 500 }
     );
   }
 }

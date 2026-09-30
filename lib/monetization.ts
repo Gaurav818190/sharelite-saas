@@ -12,11 +12,12 @@ import type {
 
 export type Plan =
   | "free"
-  | "starter"
   | "pro"
   | "business"
   | "scale"
-  | "enterprise";
+  | "enterprise"
+  | "yearly_unlimited"
+  | "ultimate_growth";
 
 export type SubscriptionStatus =
   | "active"
@@ -29,10 +30,21 @@ export type Feature =
   | "advancedAnalytics"
   | "bulkOutreach"
   | "automation"
-  | "aiUsage";
+  | "aiUsage"
+  | "aiIcebreakers"
+  | "hyperPersonalization"
+  | "imagePersonalization"
+  | "timeZoneScheduling"
+  | "abTesting"
+  | "advancedSecurity"
+  | "whiteLabel"
+  | "multiClientWorkspace"
+  | "advancedApi"
+  | "dedicatedSupport";
 
 export type PlanConfig = {
   label: string;
+  billing: "free" | "monthly" | "yearly";
   limits: {
     leads: number;
     campaigns: number;
@@ -41,61 +53,65 @@ export type PlanConfig = {
     aiUsage: number;
     emailSends: number;
     campaignEmails: number;
+    inboxes: number;
   };
   features: Record<Feature, boolean>;
+};
+
+const BASE_FEATURES: Record<Feature, boolean> = {
+  advancedAnalytics: true,
+  bulkOutreach: true,
+  automation: true,
+  aiUsage: true,
+  aiIcebreakers: false,
+  hyperPersonalization: false,
+  imagePersonalization: false,
+  timeZoneScheduling: false,
+  abTesting: false,
+  advancedSecurity: false,
+  whiteLabel: false,
+  multiClientWorkspace: false,
+  advancedApi: false,
+  dedicatedSupport: false,
 };
 
 export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
   free: {
     label: "Free",
+    billing: "free",
     limits: {
       leads: 100,
       campaigns: 3,
       templates: 5,
       validation: 25,
       aiUsage: 10,
-      emailSends: 25,
+      emailSends: 250,
       campaignEmails: 25,
+      inboxes: 1,
     },
     features: {
+      ...BASE_FEATURES,
       advancedAnalytics: false,
       bulkOutreach: false,
       automation: false,
-      aiUsage: true,
-    },
-  },
-
-  starter: {
-    label: "Starter",
-    limits: {
-      leads: 250,
-      campaigns: 10,
-      templates: 25,
-      validation: 500,
-      aiUsage: 100,
-      emailSends: 500,
-      campaignEmails: 100,
-    },
-    features: {
-      advancedAnalytics: true,
-      bulkOutreach: true,
-      automation: false,
-      aiUsage: true,
     },
   },
 
   pro: {
     label: "Pro",
+    billing: "monthly",
     limits: {
       leads: 2500,
       campaigns: 50,
       templates: 100,
-      validation: 5000,
+      validation: 2000,
       aiUsage: 500,
-      emailSends: 4000,
+      emailSends: 1500,
       campaignEmails: 100,
+      inboxes: 10,
     },
     features: {
+      ...BASE_FEATURES,
       advancedAnalytics: true,
       bulkOutreach: true,
       automation: true,
@@ -105,58 +121,141 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
 
   business: {
     label: "Business",
+    billing: "monthly",
     limits: {
       leads: 5000,
       campaigns: 200,
       templates: 500,
-      validation: 25000,
+      validation: 5000,
       aiUsage: 2000,
-      emailSends: 20000,
+      emailSends: 3000,
       campaignEmails: 250,
+      inboxes: 25,
     },
     features: {
+      ...BASE_FEATURES,
+      aiIcebreakers: true,
       advancedAnalytics: true,
       bulkOutreach: true,
       automation: true,
-      aiUsage: true,
     },
   },
 
   scale: {
-    label: "Scale / Growth",
+    label: "Scale",
+    billing: "monthly",
     limits: {
       leads: 10000,
       campaigns: 350,
       templates: 750,
-      validation: 35000,
+      validation: 7500,
       aiUsage: 5000,
-      emailSends: 30000,
+      emailSends: 4500,
       campaignEmails: 500,
+      inboxes: 50,
     },
     features: {
+      ...BASE_FEATURES,
+      aiIcebreakers: true,
+      hyperPersonalization: true,
+      imagePersonalization: true,
+      timeZoneScheduling: true,
+      abTesting: true,
+      advancedSecurity: true,
       advancedAnalytics: true,
       bulkOutreach: true,
       automation: true,
-      aiUsage: true,
     },
   },
 
   enterprise: {
     label: "Enterprise",
+    billing: "monthly",
     limits: {
       leads: 20000,
       campaigns: 500,
       templates: 1000,
-      validation: 50000,
+      validation: 10000,
       aiUsage: 10000,
-      emailSends: 40000,
+      emailSends: 6000,
       campaignEmails: 1000,
+      inboxes: 100,
     },
     features: {
+      ...BASE_FEATURES,
+      aiIcebreakers: true,
+      hyperPersonalization: true,
+      imagePersonalization: true,
+      timeZoneScheduling: true,
+      abTesting: true,
+      advancedSecurity: true,
+      whiteLabel: true,
+      multiClientWorkspace: true,
+      advancedApi: true,
+      dedicatedSupport: true,
       advancedAnalytics: true,
       bulkOutreach: true,
       automation: true,
-      aiUsage: true,
+    },
+  },
+
+  yearly_unlimited: {
+    label: "Yearly Unlimited",
+    billing: "yearly",
+    limits: {
+      leads: 50000,
+      campaigns: 1000,
+      templates: 2000,
+      validation: 25000,
+      aiUsage: 10000,
+      emailSends: 20000,
+      campaignEmails: 2000,
+      inboxes: 999999,
+    },
+    features: {
+      ...BASE_FEATURES,
+      aiIcebreakers: true,
+      hyperPersonalization: true,
+      imagePersonalization: true,
+      timeZoneScheduling: true,
+      abTesting: true,
+      advancedSecurity: true,
+      multiClientWorkspace: true,
+      advancedApi: true,
+      dedicatedSupport: true,
+      advancedAnalytics: true,
+      bulkOutreach: true,
+      automation: true,
+    },
+  },
+
+  ultimate_growth: {
+    label: "Ultimate Growth Agency & Enterprise Scale",
+    billing: "yearly",
+    limits: {
+      leads: 100000,
+      campaigns: 2000,
+      templates: 5000,
+      validation: 30000,
+      aiUsage: 10000,
+      emailSends: 25000,
+      campaignEmails: 2500,
+      inboxes: 999999,
+    },
+    features: {
+      ...BASE_FEATURES,
+      aiIcebreakers: true,
+      hyperPersonalization: true,
+      imagePersonalization: true,
+      timeZoneScheduling: true,
+      abTesting: true,
+      advancedSecurity: true,
+      multiClientWorkspace: true,
+      advancedApi: true,
+      dedicatedSupport: true,
+      advancedAnalytics: true,
+      bulkOutreach: true,
+      automation: true,
     },
   },
 };
@@ -207,18 +306,13 @@ async function request<T>(
   if (!response.ok) {
     const body = await response.text();
 
-    console.error(
-      "ShareLite Supabase monetization request failed",
-      {
-        path,
-        status: response.status,
-        body: body.slice(0, 1000),
-      },
-    );
+    console.error("ShareLite Supabase monetization request failed", {
+      path,
+      status: response.status,
+      body: body.slice(0, 1000),
+    });
 
-    throw new Error(
-      `Database request failed (${response.status}).`,
-    );
+    throw new Error(`Database request failed (${response.status}).`);
   }
 
   if (response.status === 204) {
@@ -304,9 +398,7 @@ export function getUsage(
     leads: leads.length,
     campaigns: campaigns.length,
     templates: templates.length,
-    validation: leads.filter(
-      (lead) => lead.validated_at !== null,
-    ).length,
+    validation: 0,
     aiUsage: 0,
     emailSends: 0,
   };
@@ -315,6 +407,7 @@ export function getUsage(
 async function getCurrentPeriodUsage(
   token: string,
   base: Usage,
+  leads: Lead[],
 ): Promise<Usage> {
   const now = new Date();
 
@@ -324,24 +417,38 @@ async function getCurrentPeriodUsage(
       now.getUTCMonth(),
       1,
     ),
-  )
+  );
+
+  const periodStartDate = periodStart
     .toISOString()
     .slice(0, 10);
 
   const [aiRows, emailRows] = await Promise.all([
     request<Array<{ generation_count: number }>>(
       token,
-      `/ai_usage?period_start=eq.${periodStart}&select=generation_count`,
+      `/ai_usage?period_start=eq.${periodStartDate}&select=generation_count`,
     ),
 
     request<Array<{ send_count: number }>>(
       token,
-      `/email_usage?period_start=eq.${periodStart}&select=send_count`,
+      `/email_usage?period_start=eq.${periodStartDate}&select=send_count`,
     ),
   ]);
 
+  const validationUsage = leads.filter((lead) => {
+    if (!lead.validated_at) {
+      return false;
+    }
+
+    return (
+      new Date(lead.validated_at).getTime() >=
+      periodStart.getTime()
+    );
+  }).length;
+
   return {
     ...base,
+    validation: validationUsage,
     aiUsage: aiRows[0]?.generation_count ?? 0,
     emailSends: emailRows[0]?.send_count ?? 0,
   };
@@ -400,6 +507,7 @@ export function getEntitlements(
         0,
         config.limits.emailSends - usage.emailSends,
       ),
+      inboxes: config.limits.inboxes,
     },
   };
 }
@@ -437,6 +545,7 @@ export async function getCurrentEntitlements(
   const usage = await getCurrentPeriodUsage(
     token,
     baseUsage,
+    leads,
   );
 
   return getEntitlements(
