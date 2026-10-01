@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { type MouseEvent, type ReactNode, useState } from "react";
+import { useRouter } from "next/navigation";
 
-type BillingPeriod = "monthly" | "yearly";
+type BillingPeriod = "monthly" | "yearly" | "special";
 type Currency = "USD" | "INR";
 
 const USD_TO_INR_RATE = 95.95;
@@ -176,72 +177,185 @@ const specialYearlyPlans = [
     usd: 2499,
     tagline: "Premium enterprise scale",
     description:
-      "Annual-only premium plan for power users and agencies that need more monthly outreach capacity and flexible inbox management.",
+      "For agencies and power users needing higher outreach capacity.",
     features: [
-      "Unlimited connected email inboxes (Fair Use)",
+      "Unlimited connected email inboxes",
       "10,000 email sends / month",
       "12,000 email validations / month",
-      "Hyper-personalized AI outreach (BYOK)",
-      "Custom SMTP / Dedicated IP setup support",
-      "Time-zone based scheduling",
+      "Hyper-personalized AI outreach",
+      "Custom SMTP / Dedicated IP support",
+      "Time-zone scheduling",
       "A/B testing",
-      "Multi-client workspace management",
-      "Advanced security, RLS & Webhooks",
-      "Dedicated priority support",
-      "Monthly limits reset every month",
-      "12 monthly allowances during the 1-year subscription",
-      "Annual billing only",
+      "Multi-client workspace",
+      "Advanced security & webhooks",
+      "Priority support",
     ],
-    accent: "gold",
   },
   {
     name: "Ultimate Growth Agency & Enterprise Scale",
     usd: 3199,
-    tagline: "Ultimate agency and enterprise scale",
+    tagline: "Ultimate agency & enterprise scale",
     description:
-      "Annual-only top tier for large agencies and enterprise teams running advanced multi-client outreach operations.",
+      "For large agencies and enterprise teams running multi-client outreach.",
     features: [
-      "Unlimited connected email inboxes (Fair Use)",
+      "Unlimited connected email inboxes",
       "15,000 email sends / month",
       "20,000 email validations / month",
-      "Hyper-personalized AI outreach (BYOK)",
-      "Custom SMTP / Dedicated IP setup support",
+      "Hyper-personalized AI outreach",
+      "Custom SMTP / Dedicated IP support",
       "Time-zone scheduling & A/B testing",
-      "Multi-client workspace management",
-      "Advanced security, RLS & Webhooks",
+      "Multi-client workspace",
+      "Advanced security & webhooks",
       "Dedicated priority support",
-      "Monthly limits reset every month",
-      "12 monthly allowances during the 1-year subscription",
-      "Annual billing only",
     ],
-    accent: "violet",
   },
 ];
 
+function PlanIcon({ name }: { name: string }) {
+  const styles: Record<string, string> = {
+    Pro: "bg-blue-50 text-blue-600 border-blue-100",
+    Business: "bg-violet-50 text-violet-600 border-violet-100",
+    Scale: "bg-amber-50 text-amber-600 border-amber-100",
+    Enterprise: "bg-emerald-50 text-emerald-600 border-emerald-100",
+  };
+
+  const common = "h-4.5 w-4.5";
+  return (
+    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${styles[name] ?? "bg-gray-50 text-gray-700 border-gray-200"}`}>
+      {name === "Pro" && (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}>
+          <path d="M13 2 4 14h7l-1 8 10-13h-7l0-7Z" />
+        </svg>
+      )}
+      {name === "Business" && (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}>
+          <path d="M4 21h16M6 21V7h12v14M9 7V4h6v3M9 11h2M13 11h2M9 15h2M13 15h2" />
+        </svg>
+      )}
+      {name === "Scale" && (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}>
+          <path d="m12 3 2.2 5.1L20 10l-4.3 3.7 1.2 5.8L12 16.6 7.1 19.5l1.2-5.8L4 10l5.8-1.9L12 3Z" />
+        </svg>
+      )}
+      {name === "Enterprise" && (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={common}>
+          <path d="M4 21h16M6 21V4h12v17M9 8h2M13 8h2M9 12h2M13 12h2M9 16h2M13 16h2" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
 function PlanFeatureList({
   features,
-  featured,
+  dark = false,
 }: {
   features: string[];
-  featured?: boolean;
+  dark?: boolean;
 }) {
   return (
-    <ul className="mt-4 space-y-1.5 text-[11px] leading-4.5 text-slate-300">
+    <ul
+      className={`mt-3 space-y-1.5 text-[11px] leading-4.5 ${
+        dark ? "text-white" : "text-gray-700"
+      }`}
+    >
       {features.map((feature) => (
-        <li key={feature} className="flex gap-2">
-          <span
-            className={
-              featured
-                ? "shrink-0 text-amber-400"
-                : "shrink-0 text-purple-400"
-            }
-          >
+        <li key={feature} className="flex items-start gap-2">
+          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-[11px] font-black text-green-600">
             ✓
           </span>
+
           <span>{feature}</span>
         </li>
       ))}
     </ul>
+  );
+}
+
+
+function PlanCTA({
+  href,
+  children,
+  featured = false,
+}: {
+  href: string;
+  children: ReactNode;
+  featured?: boolean;
+}) {
+  const router = useRouter();
+  const [pressed, setPressed] = useState(false);
+
+  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    if (pressed) return;
+    setPressed(true);
+    window.setTimeout(() => router.push(href), 260);
+  }
+
+  return (
+    <a
+      href={href}
+      onClick={handleClick}
+      className={`relative isolate mt-3 block overflow-hidden rounded-lg border px-3 py-2 text-center text-[11px] font-medium transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] ${featured ? "border-white bg-white text-black" : "border-black bg-black text-white"} ${
+        pressed ? "scale-[0.97]" : ""
+      }`}
+    >
+      <span className="relative z-10">{children}</span>
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/25 ${
+          pressed ? "animate-[planRipple_260ms_ease-out_forwards]" : "opacity-0"
+        }`}
+      />
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-0 ${
+          pressed ? "animate-[planWave_260ms_ease-out]" : ""
+        }`}
+      />
+    </a>
+  );
+}
+
+
+function WorkspaceMenu() {
+  const items = [
+    ["Dashboard", "/dashboard"],
+    ["Leads", "/dashboard#leads"],
+    ["Campaigns", "/dashboard#campaigns"],
+    ["Messages", "/dashboard#messages"],
+    ["Templates", "/dashboard#templates"],
+    ["Approvals", "/dashboard#approvals"],
+    ["Analytics", "/dashboard#analytics"],
+    ["Settings", "/dashboard#settings"],
+  ];
+
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        className="flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:text-black"
+        aria-haspopup="menu"
+      >
+        Home
+        <svg width="12" height="12" viewBox="0 0 20 20" fill="none" aria-hidden="true" className="transition-transform duration-200 group-hover:rotate-180">
+          <path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      <div className="pointer-events-none invisible absolute left-0 top-full z-50 w-52 translate-y-1 rounded-xl border border-gray-200 bg-white p-1.5 opacity-0 shadow-xl transition-all duration-150 group-hover:pointer-events-auto group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+        {items.map(([label, href]) => (
+          <Link
+            key={label}
+            href={href}
+            className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[12px] font-medium text-gray-700 transition hover:bg-gray-100 hover:text-black"
+          >
+            <span>{label}</span>
+            <span className="text-[10px] text-gray-400">→</span>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -250,171 +364,82 @@ export default function PlansPage() {
   const [currency, setCurrency] = useState<Currency>("USD");
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-black px-4 py-4 text-white sm:px-6 lg:px-8">
-      {/* BLACK + SPARKING BACKGROUND */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(124,58,237,0.13),transparent_35%),radial-gradient(circle_at_15%_55%,rgba(34,211,238,0.05),transparent_28%),radial-gradient(circle_at_85%_55%,rgba(245,158,11,0.05),transparent_28%)]" />
-
-        <div className="spark spark-1" />
-        <div className="spark spark-2" />
-        <div className="spark spark-3" />
-        <div className="spark spark-4" />
-        <div className="spark spark-5" />
-        <div className="spark spark-6" />
-        <div className="spark spark-7" />
-        <div className="spark spark-8" />
-        <div className="spark spark-9" />
-        <div className="spark spark-10" />
-        <div className="spark spark-11" />
-        <div className="spark spark-12" />
-      </div>
-
+    <main className="relative min-h-screen overflow-x-hidden bg-white px-4 py-4 text-black sm:px-6 lg:px-8">
       <style jsx global>{`
-        @keyframes shareliteSpark {
-          0%, 100% {
-            opacity: 0.12;
-            transform: scale(0.55);
-          }
-          50% {
-            opacity: 0.95;
-            transform: scale(1.25);
-          }
+        @keyframes planRipple {
+          0% { opacity: .30; transform: translate(-50%, -50%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(18); }
         }
-
-        .spark {
-          position: absolute;
-          width: 2px;
-          height: 2px;
-          border-radius: 9999px;
-          background: white;
-          box-shadow: 0 0 7px 2px rgba(168, 85, 247, 0.55);
-          animation: shareliteSpark 2.8s ease-in-out infinite;
+        @keyframes planWave {
+          0% { box-shadow: inset 0 0 0 0 rgba(255,255,255,0); }
+          45% { box-shadow: inset 0 0 0 2px rgba(255,255,255,.6); }
+          100% { box-shadow: inset 0 0 0 0 rgba(255,255,255,0); }
         }
-
-        .spark::after {
-          content: "";
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          width: 10px;
-          height: 1px;
-          transform: translate(-50%, -50%);
-          background: rgba(255,255,255,0.55);
-          box-shadow: 0 0 5px rgba(255,255,255,0.4);
-        }
-
-        .spark-1 { left: 7%; top: 18%; animation-delay: .2s; }
-        .spark-2 { left: 17%; top: 48%; animation-delay: 1.1s; }
-        .spark-3 { left: 28%; top: 14%; animation-delay: .7s; }
-        .spark-4 { left: 39%; top: 62%; animation-delay: 1.8s; }
-        .spark-5 { left: 51%; top: 23%; animation-delay: .4s; }
-        .spark-6 { left: 62%; top: 72%; animation-delay: 1.4s; }
-        .spark-7 { left: 73%; top: 15%; animation-delay: 2s; }
-        .spark-8 { left: 82%; top: 43%; animation-delay: .9s; }
-        .spark-9 { left: 92%; top: 22%; animation-delay: 1.6s; }
-        .spark-10 { left: 13%; top: 82%; animation-delay: 2.2s; }
-        .spark-11 { left: 69%; top: 88%; animation-delay: .3s; }
-        .spark-12 { left: 88%; top: 78%; animation-delay: 1.2s; }
       `}</style>
 
       <div className="relative z-10 mx-auto max-w-7xl">
-        {/* TOP BAR — ONLY SHARELITE PLANS ON RIGHT */}
-        <div className="flex items-center justify-between">
-          <Link
-            href="/dashboard"
-            className="text-[11px] font-bold text-slate-300 transition hover:text-purple-300"
-          >
-            ← Back to Dashboard
-          </Link>
+        {/* COMPACT INSTANTLY-STYLE NAVIGATION */}
+     <header className="flex h-14 items-center border-b border-gray-100">
+  <div className="flex items-center gap-4">
+    {/* ShareLite Logo */}
+    <Link
+      href="/"
+      className="flex items-center gap-2.5"
+      aria-label="ShareLite home"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-white shadow-sm">
+        <span className="text-[16px] font-black tracking-tight">S</span>
+      </span>
 
-          <div className="rounded-full border border-purple-400/40 bg-purple-400/10 px-3 py-1.5 text-[10px] font-bold text-purple-300">
-            ShareLite Plans
-          </div>
-        </div>
+      <span className="text-[17px] font-black tracking-[-0.04em] text-black">
+        ShareLite
+      </span>
+    </Link>
+
+    {/* Home */}
+    <Link
+      href="/"
+      className="ml-1 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-gray-700 transition duration-200 hover:bg-gray-100 hover:text-black active:scale-[0.97]"
+    >
+      Home
+    </Link>
+
+    {/* Plans */}
+    <Link
+      href="/plans"
+      className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-black transition duration-200 hover:bg-gray-100 active:scale-[0.97]"
+    >
+      Plans
+    </Link>
+  </div>
+</header>
 
         {/* COMPACT HERO */}
-        <section className="mx-auto mt-5 max-w-4xl text-center">
-          <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.3em] text-purple-400">
+        <section className="mx-auto mt-3 max-w-4xl text-center">
+          <p className="mb-1 text-[8px] font-black uppercase tracking-[0.28em] text-gray-400">
             Simple pricing. Powerful outreach.
           </p>
 
-          <h1 className="text-3xl font-black tracking-tight sm:text-4xl md:text-5xl">
+          <h1 className="text-[30px] font-black tracking-tight sm:text-[34px] md:text-[36px]">
             Choose your ShareLite plan
           </h1>
 
-          <p className="mx-auto mt-2 max-w-3xl text-[11px] leading-5 text-slate-400 sm:text-xs">
+          <p className="mx-auto mt-1 max-w-3xl text-[11px] leading-4.5 text-gray-600">
             Scale your outreach with validated leads, smarter campaigns,
             AI-powered personalization and flexible inbox options.
           </p>
         </section>
 
-        {/* COMPACT INFO ROW */}
-        <section className="mx-auto mt-5 grid max-w-5xl grid-cols-1 gap-3 md:grid-cols-2">
-          <article className="rounded-2xl border border-cyan-400/25 bg-cyan-400/[0.045] px-4 py-3">
-            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-cyan-400">
-              Email Inbox Options
-            </p>
-
-            <h2 className="mt-1 text-base font-black">
-              Bring your own inbox or connect a new one
-            </h2>
-
-            <p className="mt-1 text-[10px] leading-4 text-slate-400">
-              Connect Gmail, Google Workspace, Outlook, Zoho or supported SMTP
-              inboxes. Guided Google Workspace setup is supported.
-            </p>
-
-            <div className="mt-2 rounded-xl border border-purple-400/20 bg-purple-400/[0.04] px-3 py-2">
-              <span className="text-[10px] font-black text-purple-200">
-                🎥 How to connect a Google inbox
-              </span>
-              <span className="ml-2 text-[9px] text-slate-500">
-                Video guide coming here.
-              </span>
-            </div>
-          </article>
-
-          <article className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.045] px-4 py-3">
-            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-400">
-              Sending Safety
-            </p>
-
-            <h2 className="mt-1 text-base font-black">
-              Protect your inbox reputation
-            </h2>
-
-            <p className="mt-1 text-[10px] leading-4 text-slate-400">
-              Follow your email provider&apos;s sending policies and recommended
-              limits to protect deliverability.
-            </p>
-
-            <div className="mt-2 rounded-xl border border-amber-400/20 bg-black/25 px-3 py-2">
-              <div className="text-[10px] font-black text-amber-200">
-                🛡️ 100 ShareLite emails per connected inbox / day
-              </div>
-              <p className="mt-0.5 text-[9px] leading-4 text-slate-500">
-                ShareLite safety cap. Your plan&apos;s monthly allowance still
-                applies.
-              </p>
-            </div>
-          </article>
-        </section>
-
         {/* BILLING + CURRENCY — SAME LINE */}
-        <div className="mx-auto mt-4 flex max-w-5xl items-center justify-between gap-3">
-          <div className="flex-1" />
-
-          <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-1">
+        <div className="mx-auto mt-3 flex max-w-5xl flex-col items-center justify-center gap-4 sm:flex-row">
+          <div className="inline-flex items-center gap-1">
             <button
               type="button"
               onClick={() => setBilling("monthly")}
-              className={`rounded-lg px-5 py-2 text-[11px] font-black transition ${
+              className={`rounded-full px-4 py-1.5 text-[10px] font-medium transition ${
                 billing === "monthly"
-                  ? "bg-purple-600 text-white shadow-lg shadow-purple-950/40"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-black text-white shadow-md"
+                  : "text-gray-600 hover:text-black"
               }`}
             >
               Monthly
@@ -423,25 +448,35 @@ export default function PlansPage() {
             <button
               type="button"
               onClick={() => setBilling("yearly")}
-              className={`rounded-lg px-5 py-2 text-[11px] font-black transition ${
+              className={`rounded-full px-4 py-1.5 text-[10px] font-medium transition ${
                 billing === "yearly"
-                  ? "bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow-lg shadow-purple-950/40"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-black text-white shadow-md"
+                  : "text-gray-600 hover:text-black"
               }`}
             >
               Yearly
             </button>
+            <button
+              type="button"
+              onClick={() => setBilling("special")}
+              className={`rounded-full px-4 py-1.5 text-[10px] font-medium transition ${
+                billing === "special"
+                  ? "bg-black text-white shadow-[0_0_0_2px_#d4af37]"
+                  : "text-gray-600 hover:text-black"
+              }`}
+            >
+              ✦ Special
+            </button>
           </div>
 
-          <div className="flex flex-1 justify-end">
-            <div className="flex rounded-xl border border-white/10 bg-white/[0.04] p-1">
+          <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setCurrency("USD")}
-                className={`rounded-lg px-3 py-2 text-[11px] font-black transition ${
+                className={`rounded-full px-3 py-1.5 text-[10px] font-medium transition ${
                   currency === "USD"
-                    ? "bg-purple-600 text-white shadow-lg shadow-purple-950/40"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-black text-white shadow-md"
+                    : "text-gray-600 hover:text-black"
                 }`}
               >
                 🌎 USD
@@ -450,183 +485,195 @@ export default function PlansPage() {
               <button
                 type="button"
                 onClick={() => setCurrency("INR")}
-                className={`rounded-lg px-3 py-2 text-[11px] font-black transition ${
+                className={`rounded-full px-3 py-1.5 text-[10px] font-medium transition ${
                   currency === "INR"
-                    ? "bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow-lg shadow-purple-950/40"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-black text-white shadow-md"
+                    : "text-gray-600 hover:text-black"
                 }`}
               >
                 🇮🇳 INR
               </button>
             </div>
-          </div>
         </div>
 
         {/* TRIAL — ONE COMPACT LINE */}
-        <div className="mx-auto mt-3 max-w-5xl rounded-xl border border-emerald-400/20 bg-emerald-400/[0.035] px-3 py-2 text-center">
-          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-400">
-            12-Day Free Trial
-          </span>
-          <span className="mx-2 text-[9px] text-slate-600">•</span>
-          <span className="text-[10px] text-slate-400">
-            New accounts receive one trial. It does not restart on login,
-            logout, refresh or repeated visits.
-          </span>
-        </div>
+        <div className="mx-auto mt-2 max-w-6xl rounded-lg border border-gray-200 bg-white px-4 py-2 text-center">
+  <span className="text-[11px] font-black uppercase tracking-[0.14em] text-gray-800">
+    12-Day Free Trial
+  </span>
 
-        {/* PRICING — MOVED UP */}
-        <section className="mx-auto mt-4 grid max-w-7xl grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {normalPlans.map((plan) => {
-            const usdPrice =
-              billing === "monthly" ? plan.monthlyUsd : plan.yearlyUsd;
+  <span className="mx-3 text-[10px] text-gray-400">•</span>
 
-            const features =
-              billing === "monthly"
-                ? plan.monthlyFeatures
-                : plan.yearlyFeatures;
+  <span className="text-[10px] text-gray-600">
+    New accounts receive one trial. It does not restart on login,
+    logout, refresh or repeated visits.
+  </span>
+</div>
 
-            return (
-              <article
-                key={plan.name}
-                className={`relative flex flex-col rounded-2xl border p-4 transition hover:-translate-y-1 ${
-                  plan.featured
-                    ? "border-amber-400 bg-gradient-to-b from-amber-950/60 via-[#17110a] to-black shadow-2xl shadow-amber-950/40"
-                    : "border-purple-400/30 bg-gradient-to-b from-purple-950/20 to-white/[0.02] hover:border-purple-400/70"
-                }`}
-              >
-                {plan.featured && (
-                  <div className="absolute -top-2.5 left-4 rounded-full bg-gradient-to-r from-amber-500 to-yellow-300 px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-black">
-                    Most Popular
-                  </div>
-                )}
+        {/* PRICING */}
+        {billing !== "special" ? (
+          <>
+            <section className="mx-auto mt-3 grid max-w-[1220px] grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {normalPlans.map((plan) => {
+                const usdPrice =
+                  billing === "monthly" ? plan.monthlyUsd : plan.yearlyUsd;
 
-                <h2
-                  className={`text-lg font-black ${
-                    plan.featured ? "text-amber-100" : "text-purple-100"
-                  }`}
-                >
-                  {plan.name}
-                </h2>
+                const features =
+                  billing === "monthly"
+                    ? plan.monthlyFeatures
+                    : plan.yearlyFeatures;
 
-                <p className="mt-1.5 min-h-9 text-[10px] leading-4 text-slate-400">
-                  {plan.description}
-                </p>
-
-                <div className="mt-3 flex items-end gap-1.5">
-                  <span
-                    className={`font-black leading-none ${
-                      currency === "INR" ? "text-2xl" : "text-3xl"
+                return (
+                  <article
+                    key={plan.name}
+                    className={`relative flex min-h-[350px] flex-col rounded-xl border p-3.5 transition duration-200 hover:-translate-y-1 hover:shadow-xl ${
+                      plan.featured
+                        ? "border-black bg-black text-white shadow-xl"
+                        : "border-gray-200 bg-white hover:border-gray-400"
                     }`}
                   >
-                    {getPrice(usdPrice, currency)}
-                  </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <PlanIcon name={plan.name} />
+                      {plan.featured && (
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-black">
+                          Popular
+                        </span>
+                      )}
+                    </div>
 
-                  <span className="pb-0.5 text-[9px] text-slate-400">
-                    {billing === "monthly" ? "/ month" : "/ year"}
-                  </span>
-                </div>
+                    <h2 className={`mt-2 text-[20px] font-black ${plan.featured ? "text-white" : "text-gray-950"}`}>
+                      {plan.name}
+                    </h2>
 
-                <PlanFeatureList
-                  features={features}
-                  featured={plan.featured}
-                />
+                    <p className={`mt-1 min-h-8 text-[11px] leading-4.5 ${plan.featured ? "text-white" : "text-gray-600"}`}>
+                      {plan.description}
+                    </p>
 
-                <Link
-                  href={getPlanHref(plan.name, billing, currency)}
-                  className={`mt-5 block rounded-lg px-3 py-2 text-center text-[10px] font-black transition hover:scale-[1.02] ${
-                    plan.featured
-                      ? "bg-gradient-to-r from-amber-500 to-yellow-300 text-black"
-                      : "border border-purple-400/40 bg-purple-400/10 text-purple-100 hover:bg-purple-400/20"
-                  }`}
-                >
-                  {plan.button}
-                </Link>
-              </article>
-            );
-          })}
-        </section>
+                    <div className="mt-2.5 flex items-end gap-1">
+                      <span className={`font-black leading-none ${currency === "INR" ? "text-3xl" : "text-[36px]"}`}>
+                        {getPrice(usdPrice, currency)}
+                      </span>
+                      <span className={`pb-0.5 text-[10px] ${plan.featured ? "text-gray-300" : "text-gray-600"}`}>
+                        {billing === "monthly" ? "/ month" : "/ year"}
+                      </span>
+                    </div>
 
-        {/* SPECIAL YEARLY PLANS */}
-        {billing === "yearly" && (
-          <section className="mx-auto mt-8 max-w-7xl">
-            <div className="mb-4 text-center">
-              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-amber-400">
-                Special annual tiers
+                    <PlanFeatureList features={features} dark={plan.featured} />
+
+                    <PlanCTA href={getPlanHref(plan.name, billing, currency)} featured={plan.featured}>
+                      {plan.button}
+                    </PlanCTA>
+                  </article>
+                );
+              })}
+            </section>
+
+            {billing === "yearly" && (
+              <div className="mx-auto mt-4 max-w-[1220px] rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-center text-[11px] text-gray-600">
+                Need more power? <button type="button" onClick={() => setBilling("special")} className="font-semibold text-black underline underline-offset-2">Explore Special plans →</button>
+              </div>
+            )}
+          </>
+        ) : (
+          <section className="mx-auto mt-4 max-w-[1220px]">
+            <div className="mb-3 text-center">
+              <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#9a7a16]">
+                Premium Special
               </p>
-              <h2 className="mt-1 text-2xl font-black">
-                Built for agencies and enterprise scale
+              <h2 className="mt-1 text-[25px] font-black tracking-tight">
+                Maximum outreach. Maximum scale.
               </h2>
-              <p className="mx-auto mt-1 max-w-2xl text-[10px] leading-4 text-slate-400">
-                Annual-only premium tiers with monthly sending and validation
-                allowances during the 12-month subscription.
+              <p className="mx-auto mt-1 max-w-2xl text-[11px] leading-4 text-gray-600">
+                Special annual plans for agencies and enterprise teams that need the highest capacity.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {specialYearlyPlans.map((plan) => (
-                <article
-                  key={plan.name}
-                  className={`relative overflow-hidden rounded-2xl border p-4 ${
-                    plan.accent === "gold"
-                      ? "border-amber-400/60 bg-gradient-to-br from-amber-950/70 via-purple-950/30 to-black"
-                      : "border-purple-400/50 bg-gradient-to-br from-purple-950/60 via-[#0b1020] to-black"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p
-                        className={`text-[9px] font-black uppercase tracking-[0.2em] ${
-                          plan.accent === "gold"
-                            ? "text-amber-400"
-                            : "text-purple-400"
-                        }`}
-                      >
-                        {plan.tagline}
-                      </p>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {specialYearlyPlans.map((plan, index) => {
+                const ultimate = index === 1;
 
-                      <h3 className="mt-1 text-xl font-black">{plan.name}</h3>
-                    </div>
-
-                    <span className="shrink-0 rounded-full bg-white/5 px-2 py-1 text-[8px] font-black uppercase text-slate-400">
-                      Annual Only
-                    </span>
-                  </div>
-
-                  <p className="mt-1.5 text-[10px] leading-4 text-slate-400">
-                    {plan.description}
-                  </p>
-
-                  <div className="mt-3">
-                    <span className="text-3xl font-black">
-                      {getPrice(plan.usd, currency)}
-                    </span>
-                    <span className="ml-1 text-[9px] text-slate-400">
-                      / year
-                    </span>
-                  </div>
-
-                  <PlanFeatureList features={plan.features} />
-
-                  <Link
-                    href={getPlanHref(plan.name, "yearly", currency)}
-                    className={`mt-5 block rounded-lg px-4 py-2 text-center text-[10px] font-black ${
-                      plan.accent === "gold"
-                        ? "bg-gradient-to-r from-amber-500 to-yellow-300 text-black"
-                        : "bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white"
+                return (
+                  <article
+                    key={plan.name}
+                    className={`relative overflow-hidden rounded-2xl p-4 transition duration-200 hover:-translate-y-1 ${
+                      ultimate
+                        ? "border-[4px] border-[#d4af37] bg-black text-white shadow-[0_14px_42px_rgba(212,175,55,0.30)]"
+                        : "border-[3px] border-[#d4af37] bg-white text-black shadow-[0_10px_30px_rgba(212,175,55,0.16)]"
                     }`}
                   >
-                    {plan.name === "Yearly Max"
-                      ? "Get Yearly Max →"
-                      : "Unlock Ultimate Growth →"}
-                  </Link>
-                </article>
-              ))}
+                    <div className="absolute inset-x-0 top-0 h-1.5 bg-[#d4af37]" />
+
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                          ultimate ? "bg-[#d4af37] text-black" : "bg-[#fff7d6] text-[#9a7a16]"
+                        }`}>
+                          <span className="text-[22px]">{ultimate ? "♛" : "★"}</span>
+                        </div>
+                        <div>
+                          <p className={`text-[8px] font-black uppercase tracking-[0.22em] ${
+                            ultimate ? "text-[#f3d77a]" : "text-[#9a7a16]"
+                          }`}>
+                            {plan.tagline}
+                          </p>
+                          <h3 className="mt-1 text-[22px] font-black leading-tight">
+                            {plan.name}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <span className="shrink-0 rounded-full bg-[#d4af37] px-2.5 py-1 text-[8px] font-black uppercase tracking-wide text-black">
+                        Annual Only
+                      </span>
+                    </div>
+
+                    <p className={`mt-2 text-[11px] leading-4.5 ${
+                      ultimate ? "text-white/75" : "text-gray-600"
+                    }`}>
+                      {plan.description}
+                    </p>
+
+                    <div className="mt-3 flex items-end gap-1.5">
+                      <span className={`text-[38px] font-black leading-none ${
+                        ultimate ? "text-[#f3d77a]" : "text-black"
+                      }`}>
+                        {getPrice(plan.usd, currency)}
+                      </span>
+                      <span className={`pb-0.5 text-[10px] ${
+                        ultimate ? "text-white/70" : "text-gray-500"
+                      }`}>
+                        / year
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-1.5">
+                      {plan.features.map((feature) => (
+                        <div key={feature} className="flex items-start gap-2 text-[11px] leading-4">
+                          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-[11px] font-black text-green-500">
+  ✓
+</span>
+                          <span className={ultimate ? "text-white" : "text-gray-700"}>
+                            {feature}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <PlanCTA
+                      href={getPlanHref(plan.name, "yearly", currency)}
+                      featured={ultimate}
+                    >
+                      {ultimate ? "Unlock Ultimate Growth →" : "Get Yearly Max →"}
+                    </PlanCTA>
+                  </article>
+                );
+              })}
             </div>
           </section>
         )}
 
         {/* FOOTER */}
-        <footer className="mt-7 border-t border-white/10 pt-3 text-center text-[9px] text-slate-600">
+        <footer className="mt-7 border-t border-gray-200 pt-3 text-center text-[9px] text-gray-500">
           ShareLite — AI-powered outreach made simple.
         </footer>
       </div>

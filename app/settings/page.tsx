@@ -181,7 +181,7 @@ export default function SettingsPage() {
 
           <Link
             href="/plans"
-            className="rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-purple-950/30 transition hover:scale-[1.02]"
+            className="rounded-xl bg-gradient-to-r from-gray-600 to-gray-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-gray-950/30 transition hover:scale-[1.02]"
           >
             Upgrade Plan
           </Link>
@@ -194,9 +194,9 @@ export default function SettingsPage() {
         ) : (
           <div className="space-y-6">
             {/* Profile */}
-            <section className="rounded-3xl border border-purple-400/20 bg-gradient-to-br from-purple-950/30 via-white/[0.03] to-transparent p-6 shadow-2xl shadow-purple-950/10">
+            <section className="rounded-3xl border border-gray-400/20 bg-gradient-to-br from-gray-950/30 via-white/[0.03] to-transparent p-6 shadow-2xl shadow-gray-950/10">
               <div className="mb-6">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-purple-400">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">
                   Account
                 </p>
 
@@ -220,7 +220,7 @@ export default function SettingsPage() {
                     onChange={(event) =>
                       setFirstName(event.target.value)
                     }
-                    className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-purple-400/60"
+                    className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-gray-400/60"
                     placeholder="First name"
                   />
                 </div>
@@ -235,7 +235,7 @@ export default function SettingsPage() {
                     onChange={(event) =>
                       setLastName(event.target.value)
                     }
-                    className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-purple-400/60"
+                    className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-gray-400/60"
                     placeholder="Last name"
                   />
                 </div>
@@ -256,7 +256,7 @@ export default function SettingsPage() {
                   type="button"
                   onClick={saveProfile}
                   disabled={saving || !firstName.trim()}
-                  className="rounded-xl bg-purple-600 px-5 py-3 text-sm font-black text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl bg-gray-600 px-5 py-3 text-sm font-black text-white transition hover:bg-gray-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
@@ -268,10 +268,10 @@ export default function SettingsPage() {
             </section>
 
             {/* Subscription */}
-            <section className="rounded-3xl border border-amber-400/20 bg-gradient-to-br from-amber-950/25 via-white/[0.03] to-transparent p-6 shadow-2xl shadow-amber-950/10">
+            <section className="rounded-3xl border border-gray-400/20 bg-gradient-to-br from-gray-950/25 via-white/[0.03] to-transparent p-6 shadow-2xl shadow-gray-950/10">
               <div className="flex flex-wrap items-start justify-between gap-5">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-400">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">
                     Subscription
                   </p>
 
@@ -284,7 +284,7 @@ export default function SettingsPage() {
                   </p>
                 </div>
 
-                <div className="rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-black text-amber-300">
+                <div className="rounded-full border border-gray-400/30 bg-gray-400/10 px-4 py-2 text-xs font-black text-gray-300">
                   {isTrial ? "FREE TRIAL" : currentPlan.toUpperCase()}
                 </div>
               </div>
@@ -327,7 +327,7 @@ export default function SettingsPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/plans"
-                  className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-300 px-5 py-3 text-sm font-black text-black transition hover:scale-[1.02]"
+                  className="rounded-xl bg-gradient-to-r from-gray-500 to-gray-300 px-5 py-3 text-sm font-black text-black transition hover:scale-[1.02]"
                 >
                   View All Plans
                 </Link>
@@ -344,7 +344,7 @@ export default function SettingsPage() {
             {/* Usage */}
             <section className="rounded-3xl border border-white/10 bg-white/[0.025] p-6">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-400">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">
                   Usage
                 </p>
 
@@ -394,9 +394,9 @@ export default function SettingsPage() {
             </section>
 
             {/* Security */}
-            <section className="rounded-3xl border border-red-400/10 bg-red-400/[0.025] p-6">
+            <section className="rounded-3xl border border-gray-400/10 bg-gray-400/[0.025] p-6">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-red-300">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-300">
                   Account
                 </p>
 
@@ -412,7 +412,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={logout}
-                className="mt-6 rounded-xl border border-red-400/30 bg-red-400/10 px-5 py-3 text-sm font-black text-red-200 transition hover:bg-red-400/20"
+                className="mt-6 rounded-xl border border-gray-400/30 bg-gray-400/10 px-5 py-3 text-sm font-black text-gray-200 transition hover:bg-gray-400/20"
               >
                 Log Out
               </button>

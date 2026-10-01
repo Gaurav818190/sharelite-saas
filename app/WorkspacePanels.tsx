@@ -160,12 +160,12 @@ export default function WorkspacePanels({
 
   const inputClass = `mt-2 h-11 w-full rounded-xl border px-3 text-sm outline-none transition ${
     dark
-      ? "border-white/10 bg-[#111827] text-white placeholder:text-slate-500 focus:border-cyan-400"
-      : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-cyan-500"
+      ? "border-white/10 bg-[#171717] text-white placeholder:text-slate-500 focus:border-gray-400"
+      : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-gray-500"
   }`;
 
   const buttonClass =
-    "cursor-pointer rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50";
+    "cursor-pointer rounded-xl bg-gray-500 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-50";
 
   const selectedInbox =
     connectedInboxes.find((inbox) => inbox.id === selectedInboxId) ?? null;
@@ -604,7 +604,7 @@ export default function WorkspacePanels({
 
     if (kind === "campaign") {
       if (!campaignName.trim()) {
-        setError("Campaign name is required.");
+        setError("Campaign name is requigray.");
         return;
       }
 
@@ -618,17 +618,17 @@ export default function WorkspacePanels({
 
     if (kind === "template") {
       if (!templateName.trim()) {
-        setError("Template name is required.");
+        setError("Template name is requigray.");
         return;
       }
 
       if (!templateSubject.trim()) {
-        setError("Template subject is required.");
+        setError("Template subject is requigray.");
         return;
       }
 
       if (!templateBody.trim()) {
-        setError("Template message is required.");
+        setError("Template message is requigray.");
         return;
       }
     }
@@ -701,7 +701,7 @@ export default function WorkspacePanels({
     }
 
     if (!campaignName.trim()) {
-      setError("Campaign name is required.");
+      setError("Campaign name is requigray.");
       return;
     }
 
@@ -938,7 +938,7 @@ export default function WorkspacePanels({
     setSuccess(null);
 
     if (!firstName.trim()) {
-      setError("First name is required.");
+      setError("First name is requigray.");
       return;
     }
 
@@ -1176,18 +1176,18 @@ export default function WorkspacePanels({
 
     if (!composeTo.trim()) {
       setError(
-        "Recipient email is required."
+        "Recipient email is requigray."
       );
       return;
     }
 
     if (!composeSubject.trim()) {
-      setError("Subject is required.");
+      setError("Subject is requigray.");
       return;
     }
 
     if (!composeBody.trim()) {
-      setError("Message is required.");
+      setError("Message is requigray.");
       return;
     }
 
@@ -1250,7 +1250,7 @@ export default function WorkspacePanels({
     }
 
     if (!composeBody.trim()) {
-      setError("Reply message is required.");
+      setError("Reply message is requigray.");
       return;
     }
 
@@ -1375,14 +1375,14 @@ export default function WorkspacePanels({
       <section
         className={`min-w-0 overflow-hidden rounded-3xl border ${
           dark
-            ? "border-white/[0.07] bg-[#070a12]"
+            ? "border-white/[0.07] bg-[#0a0a0a]"
             : "border-slate-200 bg-slate-50"
         }`}
       >
         <div
           className={`border-b px-4 py-4 md:px-6 ${
             dark
-              ? "border-white/[0.07] bg-[#070a12]/95"
+              ? "border-white/[0.07] bg-[#0a0a0a]/95"
               : "border-slate-200 bg-white"
           }`}
         >
@@ -1406,7 +1406,7 @@ export default function WorkspacePanels({
                   <span
                     className={`h-2 w-2 shrink-0 rounded-full ${
                       selectedInbox
-                        ? "bg-emerald-400"
+                        ? "bg-gray-400"
                         : "bg-slate-500"
                     }`}
                   />
@@ -1426,8 +1426,8 @@ export default function WorkspacePanels({
                 <span
                   className={`hidden rounded-full px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide sm:inline-flex ${
                     dark
-                      ? "bg-emerald-400/10 text-emerald-300"
-                      : "bg-emerald-50 text-emerald-700"
+                      ? "bg-gray-400/10 text-gray-300"
+                      : "bg-gray-50 text-gray-700"
                   }`}
                 >
                   Connected
@@ -1438,7 +1438,7 @@ export default function WorkspacePanels({
                 type="button"
                 onClick={openCompose}
                 disabled={!selectedInbox}
-                className="rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-xl bg-gray-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-gray-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 + Compose
               </button>
@@ -1487,7 +1487,7 @@ export default function WorkspacePanels({
             {error && (
               <div
                 role="alert"
-                className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-xs font-semibold text-rose-300"
+                className="rounded-xl border border-gray-400/20 bg-gray-400/10 px-4 py-3 text-xs font-semibold text-gray-300"
               >
                 {error}
                 {error.includes("Reconnect Gmail") && (
@@ -1504,7 +1504,7 @@ export default function WorkspacePanels({
             {!error && success && (
               <div
                 role="status"
-                className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-xs font-semibold text-emerald-300"
+                className="rounded-xl border border-gray-400/20 bg-gray-400/10 px-4 py-3 text-xs font-semibold text-gray-300"
               >
                 {success}
               </div>
@@ -1525,8 +1525,8 @@ export default function WorkspacePanels({
                 <div
                   className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl text-2xl ${
                     dark
-                      ? "bg-purple-400/10 text-purple-300"
-                      : "bg-purple-50 text-purple-600"
+                      ? "bg-gray-400/10 text-gray-300"
+                      : "bg-gray-50 text-gray-600"
                   }`}
                 >
                   ✉
@@ -1547,7 +1547,7 @@ export default function WorkspacePanels({
                 <button
                   type="button"
                   onClick={connectGoogleInbox}
-                  className="mt-6 rounded-xl bg-purple-600 px-5 py-3 text-xs font-black text-white transition hover:bg-purple-500"
+                  className="mt-6 rounded-xl bg-gray-600 px-5 py-3 text-xs font-black text-white transition hover:bg-gray-500"
                 >
                   {disconnectedGoogleInboxes.length > 0
                     ? "Reconnect Google / Gmail"
@@ -1591,15 +1591,15 @@ export default function WorkspacePanels({
                         className={`mb-1 w-full rounded-xl px-3 py-3 text-left transition ${
                           active
                             ? dark
-                              ? "bg-purple-400/10 ring-1 ring-purple-400/20"
-                              : "bg-purple-50 ring-1 ring-purple-200"
+                              ? "bg-gray-400/10 ring-1 ring-gray-400/20"
+                              : "bg-gray-50 ring-1 ring-gray-200"
                             : dark
                               ? "hover:bg-white/[0.04]"
                               : "hover:bg-slate-50"
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-xs font-black text-red-400">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-500/10 text-xs font-black text-gray-400">
                             G
                           </span>
                           <div className="min-w-0">
@@ -1638,7 +1638,7 @@ export default function WorkspacePanels({
                     </p>
                   </div>
                   {loadingInboxMessages && (
-                    <span className="text-[10px] font-black text-purple-400">
+                    <span className="text-[10px] font-black text-gray-400">
                       Syncing…
                     </span>
                   )}
@@ -1658,7 +1658,7 @@ export default function WorkspacePanels({
                   ) : gmailMessages.length === 0 ? (
                     <div className="flex min-h-[330px] items-center justify-center px-6 text-center">
                       <div>
-                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-400/10 text-xl text-purple-300">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-400/10 text-xl text-gray-300">
                           ✉
                         </div>
                         <p className="text-sm font-black">No messages found</p>
@@ -1682,12 +1682,12 @@ export default function WorkspacePanels({
                           } ${
                             active
                               ? dark
-                                ? "bg-purple-400/10"
-                                : "bg-purple-50"
+                                ? "bg-gray-400/10"
+                                : "bg-gray-50"
                               : unread
                                 ? dark
                                   ? "bg-white/[0.025] hover:bg-white/[0.05]"
-                                  : "bg-purple-50/30 hover:bg-purple-50/60"
+                                  : "bg-gray-50/30 hover:bg-gray-50/60"
                                 : dark
                                   ? "hover:bg-white/[0.035]"
                                   : "hover:bg-slate-50"
@@ -1696,7 +1696,7 @@ export default function WorkspacePanels({
                           <div className="flex items-start gap-3">
                             <span
                               className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                                unread ? "bg-purple-400" : "bg-transparent"
+                                unread ? "bg-gray-400" : "bg-transparent"
                               }`}
                             />
                             <div className="min-w-0 flex-1">
@@ -1715,7 +1715,7 @@ export default function WorkspacePanels({
                                 {message.snippet || message.text || "No preview available."}
                               </p>
                             </div>
-                            <span className="mt-1 shrink-0 text-slate-600 transition group-hover:text-purple-400">
+                            <span className="mt-1 shrink-0 text-slate-600 transition group-hover:text-gray-400">
                               ›
                             </span>
                           </div>
@@ -1794,7 +1794,7 @@ export default function WorkspacePanels({
                     >
                       {replyTarget && (
                         <div className="space-y-3">
-                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-purple-400">
+                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">
                             Reply to {getSenderEmail(replyTarget.from)}
                           </div>
                           <textarea
@@ -1805,8 +1805,8 @@ export default function WorkspacePanels({
                             maxLength={20000}
                             className={`w-full resize-y rounded-xl border px-3 py-3 text-sm leading-6 outline-none transition ${
                               dark
-                                ? "border-white/10 bg-[#111827] text-white placeholder:text-slate-600 focus:border-purple-400"
-                                : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-purple-400"
+                                ? "border-white/10 bg-[#171717] text-white placeholder:text-slate-600 focus:border-gray-400"
+                                : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-gray-400"
                             }`}
                           />
                           <div className="flex justify-end">
@@ -1814,7 +1814,7 @@ export default function WorkspacePanels({
                               type="button"
                               onClick={() => void replyToGmailMessage()}
                               disabled={sendingGmail || !composeBody.trim()}
-                              className="rounded-xl bg-purple-600 px-5 py-2.5 text-xs font-black text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="rounded-xl bg-gray-600 px-5 py-2.5 text-xs font-black text-white transition hover:bg-gray-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {sendingGmail ? "Sending…" : "Send reply"}
                             </button>
@@ -1839,13 +1839,13 @@ export default function WorkspacePanels({
             <div
               className={`w-full max-w-2xl rounded-2xl border p-5 shadow-2xl md:p-6 ${
                 dark
-                  ? "border-white/[0.08] bg-[#0b0f19]"
+                  ? "border-white/[0.08] bg-[#111111]"
                   : "border-slate-200 bg-white"
               }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-purple-400">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
                     New message
                   </p>
                   <h3 id="sharelite-compose-title" className="mt-1 text-lg font-black">
@@ -1929,7 +1929,7 @@ export default function WorkspacePanels({
                       !composeSubject.trim() ||
                       !composeBody.trim()
                     }
-                    className="rounded-xl bg-purple-600 px-5 py-2.5 text-xs font-black text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl bg-gray-600 px-5 py-2.5 text-xs font-black text-white transition hover:bg-gray-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {sendingGmail ? "Sending…" : "Send message"}
                   </button>
@@ -1962,7 +1962,7 @@ export default function WorkspacePanels({
                       : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                   }`}
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gray-400/10 text-gray-300">
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -1988,7 +1988,7 @@ export default function WorkspacePanels({
                 <div
                   className={`absolute right-0 z-40 mt-2 w-[min(390px,calc(100vw-2rem))] rounded-2xl border p-2 shadow-2xl ${
                     dark
-                      ? "border-white/10 bg-[#080808]"
+                      ? "border-white/10 bg-[#0a0a0a]"
                       : "border-slate-200 bg-white"
                   }`}
                 >
@@ -2002,7 +2002,7 @@ export default function WorkspacePanels({
                     <button
                       type="button"
                       onClick={connectGoogleInbox}
-                      className="rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[10px] font-black text-slate-950 hover:bg-cyan-400"
+                      className="rounded-lg bg-gray-500 px-2.5 py-1.5 text-[10px] font-black text-slate-950 hover:bg-gray-400"
                     >
                       + Gmail
                     </button>
@@ -2015,7 +2015,7 @@ export default function WorkspacePanels({
                         <button
                           type="button"
                           onClick={connectGoogleInbox}
-                          className="mt-2 text-[11px] font-black text-cyan-300 hover:text-cyan-200"
+                          className="mt-2 text-[11px] font-black text-gray-300 hover:text-gray-200"
                         >
                           Connect Google / Gmail →
                         </button>
@@ -2037,8 +2037,8 @@ export default function WorkspacePanels({
                             className={`rounded-xl border p-2 ${
                               isSelected
                                 ? dark
-                                  ? "border-cyan-400/30 bg-cyan-400/[0.06]"
-                                  : "border-cyan-300 bg-cyan-50"
+                                  ? "border-gray-400/30 bg-gray-400/[0.06]"
+                                  : "border-gray-300 bg-gray-50"
                                 : dark
                                   ? "border-white/[0.06] bg-white/[0.02]"
                                   : "border-slate-200 bg-slate-50"
@@ -2050,7 +2050,7 @@ export default function WorkspacePanels({
                               className="w-full text-left"
                             >
                               <div className="flex items-center gap-2">
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-xs font-black text-red-400">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-500/10 text-xs font-black text-gray-400">
                                   G
                                 </span>
                                 <div className="min-w-0 flex-1">
@@ -2061,8 +2061,8 @@ export default function WorkspacePanels({
                                     <span
                                       className={`shrink-0 text-[10px] font-black ${
                                         inbox.status === "active"
-                                          ? "text-emerald-400"
-                                          : "text-amber-400"
+                                          ? "text-gray-400"
+                                          : "text-gray-400"
                                       }`}
                                     >
                                       {inbox.status === "active" ? "●" : "●"}
@@ -2082,7 +2082,7 @@ export default function WorkspacePanels({
 
                             <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.08]">
                               <div
-                                className="h-full rounded-full bg-cyan-400 transition-all"
+                                className="h-full rounded-full bg-gray-400 transition-all"
                                 style={{ width: `${usage}%` }}
                               />
                             </div>
@@ -2101,8 +2101,8 @@ export default function WorkspacePanels({
                                 }
                                 className={`rounded-lg border px-2 py-1 text-[10px] font-black transition disabled:opacity-50 ${
                                   inbox.status === "active"
-                                    ? "border-amber-400/30 text-amber-400 hover:bg-amber-400/10"
-                                    : "border-emerald-400/30 text-emerald-400 hover:bg-emerald-400/10"
+                                    ? "border-gray-400/30 text-gray-400 hover:bg-gray-400/10"
+                                    : "border-gray-400/30 text-gray-400 hover:bg-gray-400/10"
                                 }`}
                               >
                                 {isUpdating
@@ -2115,7 +2115,7 @@ export default function WorkspacePanels({
                                 type="button"
                                 disabled={isUpdating}
                                 onClick={() => void disconnectInbox(inbox.id)}
-                                className="rounded-lg border border-rose-400/30 px-2 py-1 text-[10px] font-black text-rose-400 transition hover:bg-rose-400/10 disabled:opacity-50"
+                                className="rounded-lg border border-gray-400/30 px-2 py-1 text-[10px] font-black text-gray-400 transition hover:bg-gray-400/10 disabled:opacity-50"
                               >
                                 Disconnect
                               </button>
@@ -2139,7 +2139,7 @@ export default function WorkspacePanels({
                 setSuccess(null);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-black text-white transition hover:bg-blue-500"
+              className="rounded-xl bg-gray-600 px-4 py-2 text-xs font-black text-white transition hover:bg-gray-500"
             >
               + New Campaign
             </button>
@@ -2151,7 +2151,7 @@ export default function WorkspacePanels({
             {error && (
               <div
                 role="alert"
-                className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-xs font-semibold text-rose-300"
+                className="rounded-xl border border-gray-400/20 bg-gray-400/10 px-4 py-3 text-xs font-semibold text-gray-300"
               >
                 {error}
                 {error.includes("Reconnect Gmail") && (
@@ -2168,7 +2168,7 @@ export default function WorkspacePanels({
             {!error && success && (
               <div
                 role="status"
-                className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-xs font-semibold text-emerald-300"
+                className="rounded-xl border border-gray-400/20 bg-gray-400/10 px-4 py-3 text-xs font-semibold text-gray-300"
               >
                 {success}
               </div>
@@ -2207,7 +2207,7 @@ export default function WorkspacePanels({
             onChange={(event) => setCampaignTemplateId(event.target.value)}
             className={`mt-3 h-11 w-full rounded-xl border px-3 text-sm ${
               dark
-                ? "border-white/10 bg-[#111827] text-white"
+                ? "border-white/10 bg-[#171717] text-white"
                 : "border-slate-200 bg-white text-slate-900"
             }`}
           >
@@ -2221,7 +2221,7 @@ export default function WorkspacePanels({
 
           {editingCampaignId && (
             <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-xs text-cyan-400">
+              <p className="text-xs text-gray-400">
                 Editing campaign. Update the fields above and save your changes.
               </p>
               <button
@@ -2251,7 +2251,7 @@ export default function WorkspacePanels({
                     <p className="text-xs text-slate-400">
                       {campaign.description || "No description"}
                     </p>
-                    <span className="mt-2 inline-block text-xs font-bold uppercase text-cyan-400">
+                    <span className="mt-2 inline-block text-xs font-bold uppercase text-gray-400">
                       {campaign.status}
                     </span>
 
@@ -2259,25 +2259,25 @@ export default function WorkspacePanels({
                       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                         <div className="rounded-lg bg-white/[0.04] px-3 py-2">
                           <p className="text-[10px] text-slate-500">Pending</p>
-                          <p className="text-sm font-bold text-amber-400">
+                          <p className="text-sm font-bold text-gray-400">
                             {deliveryCounts[campaign.id].pending}
                           </p>
                         </div>
                         <div className="rounded-lg bg-white/[0.04] px-3 py-2">
                           <p className="text-[10px] text-slate-500">Sending</p>
-                          <p className="text-sm font-bold text-cyan-400">
+                          <p className="text-sm font-bold text-gray-400">
                             {deliveryCounts[campaign.id].sending}
                           </p>
                         </div>
                         <div className="rounded-lg bg-white/[0.04] px-3 py-2">
                           <p className="text-[10px] text-slate-500">Accepted</p>
-                          <p className="text-sm font-bold text-emerald-400">
+                          <p className="text-sm font-bold text-gray-400">
                             {deliveryCounts[campaign.id].accepted}
                           </p>
                         </div>
                         <div className="rounded-lg bg-white/[0.04] px-3 py-2">
                           <p className="text-[10px] text-slate-500">Failed</p>
-                          <p className="text-sm font-bold text-rose-400">
+                          <p className="text-sm font-bold text-gray-400">
                             {deliveryCounts[campaign.id].failed}
                           </p>
                         </div>
@@ -2307,7 +2307,7 @@ export default function WorkspacePanels({
                       <button
                         type="button"
                         onClick={() => void activateCampaign(campaign.id)}
-                        className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-400"
+                        className="rounded-xl bg-gray-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-gray-400"
                       >
                         Activate
                       </button>
@@ -2319,7 +2319,7 @@ export default function WorkspacePanels({
                         onClick={() =>
                           void updateCampaignStatus(campaign.id, "paused")
                         }
-                        className="rounded-xl border border-amber-400/30 px-3 py-2 text-xs font-bold text-amber-400 transition hover:bg-amber-500/10"
+                        className="rounded-xl border border-gray-400/30 px-3 py-2 text-xs font-bold text-gray-400 transition hover:bg-gray-500/10"
                       >
                         Pause
                       </button>
@@ -2331,7 +2331,7 @@ export default function WorkspacePanels({
                         onClick={() =>
                           void updateCampaignStatus(campaign.id, "active")
                         }
-                        className="rounded-xl border border-emerald-400/30 px-3 py-2 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/10"
+                        className="rounded-xl border border-gray-400/30 px-3 py-2 text-xs font-bold text-gray-400 transition hover:bg-gray-500/10"
                       >
                         Resume
                       </button>
@@ -2342,7 +2342,7 @@ export default function WorkspacePanels({
                       onClick={() =>
                         void removeCampaign(campaign.id, campaign.name)
                       }
-                      className="rounded-xl border border-rose-400/30 px-3 py-2 text-xs font-bold text-rose-400 transition hover:bg-rose-500/10"
+                      className="rounded-xl border border-gray-400/30 px-3 py-2 text-xs font-bold text-gray-400 transition hover:bg-gray-500/10"
                     >
                       Delete
                     </button>
@@ -2447,14 +2447,14 @@ I wanted to connect with you regarding...`}
         {error && (
           <p
             role="alert"
-            className="text-sm text-rose-400"
+            className="text-sm text-gray-400"
           >
             {error}
           </p>
         )}
 
         {success && (
-          <p className="text-sm text-emerald-400">
+          <p className="text-sm text-gray-400">
             {success}
           </p>
         )}
@@ -2472,7 +2472,7 @@ I wanted to connect with you regarding...`}
                       {template.name}
                     </h3>
 
-                    <p className="mt-1 text-sm font-semibold text-cyan-400">
+                    <p className="mt-1 text-sm font-semibold text-gray-400">
                       {template.subject}
                     </p>
 
@@ -2579,8 +2579,8 @@ I wanted to connect with you regarding...`}
                       }}
                       className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${
                         dark
-                          ? "border-rose-400/20 bg-rose-400/10 text-rose-300 hover:bg-rose-400/15"
-                          : "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                          ? "border-gray-400/20 bg-gray-400/10 text-gray-300 hover:bg-gray-400/15"
+                          : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
                       }`}
                     >
                       Delete
@@ -2617,7 +2617,7 @@ I wanted to connect with you regarding...`}
         </div>
 
         {error && (
-          <p role="alert" className="text-sm text-rose-400">
+          <p role="alert" className="text-sm text-gray-400">
             {error}
           </p>
         )}
@@ -2662,7 +2662,7 @@ I wanted to connect with you regarding...`}
                 <div>unknown: {analytics.validationStatus.unknown ?? 0}</div>
                 <div>valid: {analytics.validationStatus.valid ?? 0}</div>
                 <div>invalid: {analytics.validationStatus.invalid ?? 0}</div>
-                <div>risky: {analytics.validationStatus.risky ?? 0}</div>
+                <div>rigray: {analytics.validationStatus.rigray ?? 0}</div>
                 <div>disposable: {analytics.validationStatus.disposable ?? 0}</div>
                 <div>error: {analytics.validationStatus.error ?? 0}</div>
               </div>
@@ -2752,7 +2752,7 @@ I wanted to connect with you regarding...`}
           </button>
 
           {profile && !error && success && (
-            <p className="mt-3 text-xs text-emerald-400">{success}</p>
+            <p className="mt-3 text-xs text-gray-400">{success}</p>
           )}
         </div>
 
@@ -2760,14 +2760,14 @@ I wanted to connect with you regarding...`}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-lg font-black">Current plan</h3>
-              <p className="mt-1 text-sm font-bold text-cyan-400">
+              <p className="mt-1 text-sm font-bold text-gray-400">
                 {planName} plan
               </p>
             </div>
 
             <a
               href="/plans"
-              className="rounded-xl border border-cyan-400/40 px-4 py-2 text-xs font-black text-cyan-400 transition hover:bg-cyan-400/10"
+              className="rounded-xl border border-gray-400/40 px-4 py-2 text-xs font-black text-gray-400 transition hover:bg-gray-400/10"
             >
               View plans
             </a>
@@ -2800,7 +2800,7 @@ I wanted to connect with you regarding...`}
         </div>
 
         {error && (
-          <p role="alert" className="text-sm text-rose-400">
+          <p role="alert" className="text-sm text-gray-400">
             {error}
           </p>
         )}

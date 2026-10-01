@@ -47,7 +47,7 @@ type DeliveryLifecycle = {
   pending: number;
   sending: number;
   accepted: number;
-  delivered: number;
+  delivegray: number;
   bounced: number;
   failed: number;
   total: number;
@@ -61,7 +61,7 @@ type DashboardDelivery = {
   lead_id?: string;
   status?: string;
   sent_at?: string | null;
-  delivered_at?: string | null;
+  delivegray_at?: string | null;
   bounced_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -228,7 +228,7 @@ export default function DashboardClient({
   initialCounts,
   dataError,
 }: DashboardClientProps) {
-  const [dark, setDark] = useState(true);
+  const dark = false;
   const [activeTab, setActiveTab] = useState("dashboard");
 
      const [leads, setLeads] = useState<Lead[]>(initialLeads);
@@ -304,7 +304,7 @@ const [bulkOutreachMessage, setBulkOutreachMessage] = useState<
 const [bulkOutreachError, setBulkOutreachError] = useState<string | null>(
   null
 );
-const [preparedDeliveryIds, setPreparedDeliveryIds] = useState<string[]>([]);
+const [prepagrayDeliveryIds, setPrepagrayDeliveryIds] = useState<string[]>([]);
 const [sendDeliveryLoading, setSendDeliveryLoading] = useState(false);
   const [analyticsRange, setAnalyticsRange] =
     useState<AnalyticsRange>("7d");
@@ -314,7 +314,7 @@ const [sendDeliveryLoading, setSendDeliveryLoading] = useState(false);
     pending: 0,
     sending: 0,
     accepted: 0,
-    delivered: 0,
+    delivegray: 0,
     bounced: 0,
     failed: 0,
     total: 0,
@@ -350,15 +350,37 @@ const [sendDeliveryLoading, setSendDeliveryLoading] = useState(false);
   const firstName =
   profileFirstName.trim() || getFirstName(user);
 
-  const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: "dashboard" },
-    { id: "leads", label: "Leads", icon: "leads" },
-    { id: "campaigns", label: "Campaigns", icon: "campaigns" },
-    { id: "messages", label: "Messages", icon: "messages" },
-    { id: "approvals", label: "Approvals", icon: "approvals" },
-    { id: "analytics", label: "Analytics", icon: "analytics" },
-    { id: "settings", label: "Settings", icon: "settings" },
-    { id: "billing", label: "Billing", icon: "billing" },
+    const navGroups = [
+    {
+      title: "WORKSPACE",
+      items: [
+        { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+        { id: "leads", label: "Leads", icon: "leads" },
+        { id: "campaigns", label: "Campaigns", icon: "campaigns" },
+        { id: "messages", label: "Messages", icon: "messages" },
+        { id: "approvals", label: "Approvals", icon: "approvals" },
+        { id: "analytics", label: "Analytics", icon: "analytics" },
+      ],
+    },
+    {
+      title: "MANAGE",
+      items: [
+        { id: "templates", label: "Templates", icon: "templates" },
+        {
+          id: "inboxes",
+          label: "Connected Inboxes",
+          icon: "inboxes",
+        },
+        { id: "reviews", label: "Reviews", icon: "reviews" },
+      ],
+    },
+    {
+      title: "ACCOUNT",
+      items: [
+        { id: "billing", label: "Billing", icon: "billing" },
+        { id: "settings", label: "Settings", icon: "settings" },
+      ],
+    },
   ];
 
   function formatStatChange(value: number | null): string {
@@ -431,7 +453,7 @@ const [sendDeliveryLoading, setSendDeliveryLoading] = useState(false);
     const status = String(delivery.status ?? "").toLowerCase();
     return Boolean(
       delivery.sent_at ||
-        ["sending", "accepted", "delivered", "bounced", "failed"].includes(status)
+        ["sending", "accepted", "delivegray", "bounced", "failed"].includes(status)
     );
   }).length;
 
@@ -494,19 +516,19 @@ const [sendDeliveryLoading, setSendDeliveryLoading] = useState(false);
       const status = String(delivery.status ?? "").toLowerCase();
       return Boolean(
         delivery.sent_at ||
-          ["sending", "accepted", "delivered", "bounced", "failed"].includes(status)
+          ["sending", "accepted", "delivegray", "bounced", "failed"].includes(status)
       );
     }).length;
-    const delivered = rows.filter(
+    const delivegray = rows.filter(
       (delivery) =>
-        String(delivery.status ?? "").toLowerCase() === "delivered" ||
-        Boolean(delivery.delivered_at)
+        String(delivery.status ?? "").toLowerCase() === "delivegray" ||
+        Boolean(delivery.delivegray_at)
     ).length;
     const failed = rows.filter((delivery) => {
       const status = String(delivery.status ?? "").toLowerCase();
       return status === "failed" || status === "bounced" || Boolean(delivery.bounced_at);
     }).length;
-    return { sent, delivered, failed };
+    return { sent, delivegray, failed };
   }
 
   const countdown =
@@ -1075,7 +1097,7 @@ useEffect(() => {
 
   let cancelled = false;
 
-  async function loadPreparedDeliveries() {
+  async function loadPrepagrayDeliveries() {
     try {
       const response = await fetch(
         `/api/campaigns/${encodeURIComponent(
@@ -1110,7 +1132,7 @@ useEffect(() => {
             delivery?.status === "pending",
         );
 
-      setPreparedDeliveryIds(
+      setPrepagrayDeliveryIds(
         pendingDeliveries
           .map(
             (delivery: {
@@ -1167,7 +1189,7 @@ useEffect(() => {
     }
   }
 
-  void loadPreparedDeliveries();
+  void loadPrepagrayDeliveries();
 
   return () => {
     cancelled = true;
@@ -1655,13 +1677,13 @@ async function prepareBulkCampaign() {
       );
     }
 
-    const preparedDeliveries =
-      Array.isArray(body?.preparedDeliveries)
-        ? body.preparedDeliveries
+    const prepagrayDeliveries =
+      Array.isArray(body?.prepagrayDeliveries)
+        ? body.prepagrayDeliveries
         : [];
 
-    setPreparedDeliveryIds(
-      preparedDeliveries
+    setPrepagrayDeliveryIds(
+      prepagrayDeliveries
         .map(
           (delivery: { id?: string }) =>
             typeof delivery?.id === "string"
@@ -1675,8 +1697,8 @@ async function prepareBulkCampaign() {
     );
 
     setBulkOutreachMessage(
-      `Campaign prepared: ${
-        preparedDeliveries.length
+      `Campaign prepagray: ${
+        prepagrayDeliveries.length
       } delivery(s) ready.`,
     );
 
@@ -1691,7 +1713,7 @@ async function prepareBulkCampaign() {
     setBulkOutreachLoading(false);
   }
 }
- async function sendPreparedDelivery() {
+ async function sendPrepagrayDelivery() {
   setBulkOutreachError(null);
   setBulkOutreachMessage(null);
 
@@ -1709,9 +1731,9 @@ async function prepareBulkCampaign() {
     return;
   }
 
-  if (preparedDeliveryIds.length === 0) {
+  if (prepagrayDeliveryIds.length === 0) {
     setBulkOutreachError(
-      "No prepared deliveries are available.",
+      "No prepagray deliveries are available.",
     );
     return;
   }
@@ -1735,7 +1757,7 @@ async function prepareBulkCampaign() {
     if (!deliveriesResponse.ok) {
       throw new Error(
         deliveriesBody?.error ??
-          "Unable to load prepared deliveries.",
+          "Unable to load prepagray deliveries.",
       );
     }
 
@@ -1745,7 +1767,7 @@ async function prepareBulkCampaign() {
       ? deliveriesBody.deliveries
       : [];
 
-    const preparedIds = [...preparedDeliveryIds];
+    const prepagrayIds = [...prepagrayDeliveryIds];
 
     let queuedCount = 0;
     let failedCount = 0;
@@ -1756,10 +1778,10 @@ async function prepareBulkCampaign() {
 
     for (
       let start = 0;
-      start < preparedIds.length;
+      start < prepagrayIds.length;
       start += batchSize
     ) {
-      const batch = preparedIds.slice(
+      const batch = prepagrayIds.slice(
         start,
         start + batchSize,
       );
@@ -1767,19 +1789,19 @@ async function prepareBulkCampaign() {
       const results = await Promise.all(
         batch.map(async (deliveryId) => {
           try {
-            const preparedDelivery = deliveries.find(
+            const prepagrayDelivery = deliveries.find(
               (delivery: {
                 id?: string;
               }) => delivery?.id === deliveryId,
             );
 
-            if (!preparedDelivery?.lead_id) {
+            if (!prepagrayDelivery?.lead_id) {
               throw new Error(
-                "Unable to determine the lead for this prepared delivery.",
+                "Unable to determine the lead for this prepagray delivery.",
               );
             }
 
-            const leadId = preparedDelivery.lead_id;
+            const leadId = prepagrayDelivery.lead_id;
 
             const aiSubject =
               typeof aiSubjects[leadId] === "string"
@@ -1859,10 +1881,10 @@ async function prepareBulkCampaign() {
     }
 
     if (queuedCount > 0) {
-      setPreparedDeliveryIds((current) =>
+      setPrepagrayDeliveryIds((current) =>
         current.filter(
           (id) =>
-            !preparedIds.includes(id),
+            !prepagrayIds.includes(id),
         ),
       );
     }
@@ -1938,31 +1960,27 @@ async function prepareBulkCampaign() {
         .sharelite-compact button, .sharelite-compact a { -webkit-tap-highlight-color: transparent; }
       `}</style>
       <aside
-        className={`${
-          activeTab === "inbox"
-            ? "hidden"
-            : "relative z-30 hidden w-[242px] shrink-0 xl:w-[242px] border-r md:sticky md:top-0 md:flex md:h-screen md:flex-col"
-        } ${
-          dark
-            ? "border-white/[0.07] bg-[#030303]"
-            : "border-slate-200 bg-white"
-        }`}
-      >
+  className={`${
+    activeTab === "inbox"
+      ? "hidden"
+      : "relative z-30 hidden w-[242px] shrink-0 xl:w-[242px] md:sticky md:top-0 md:flex md:h-screen md:flex-col"
+  } bg-white`}
+>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3.5 pt-4">
           <div className="flex items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-2">
               <div
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[14px] font-black ${
                   dark
-                    ? "border-cyan-400/25 bg-cyan-400/[0.08] text-cyan-300"
-                    : "border-cyan-500/25 bg-cyan-50 text-cyan-700"
+                    ? "border-gray-400/25 bg-gray-400/[0.08] text-gray-300"
+                    : "border-gray-500/25 bg-gray-50 text-gray-700"
                 }`}
                 aria-hidden="true"
               >
                 S
               </div>
               <div>
-                <div className="text-[16px] font-black tracking-[-0.04em]">ShareLite</div>
+                <div className="flex items-center gap-2"><img src="/sharelite-logo.png" alt="ShareLite" className="h-8 w-8 object-contain" /><div><div className="text-[16px] font-black tracking-[-0.04em]">ShareLite</div><div className="text-[9px] font-medium text-slate-500">Outreach Engine</div></div></div>
                 <div className="text-[9px] font-medium text-slate-500">Outreach Engine</div>
               </div>
             </div>
@@ -1972,90 +1990,113 @@ async function prepareBulkCampaign() {
               className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition ${
                 dark
                   ? "border-white/[0.10] bg-white/[0.02] text-slate-400 hover:bg-white/[0.06] hover:text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  : "bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >
               Logout
             </button>
           </div>
 
-          <nav className="mt-5 space-y-1" aria-label="Workspace navigation">
-            {navItems.map((item) => {
-              const mappedTab =
-                item.id === "messages"
-                  ? "inbox"
-                  : item.id === "approvals"
-                  ? "reviews"
-                  : item.id;
-              const isActive =
-                item.id !== "billing" && activeTab === mappedTab;
+          <nav className="mt-5 space-y-5" aria-label="Workspace navigation">
+  {navGroups.map((group) => (
+    <div key={group.title}>
+      <div className="mb-2 px-3 text-[9px] font-black tracking-[0.16em] text-slate-400">
+        {group.title}
+      </div>
 
-              if (item.id === "billing") {
-                return (
-                  <Link
-                    key={item.id}
-                    href="/plans"
-                    className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-[12px] font-medium transition ${
-                      dark
-                        ? "text-slate-400 hover:bg-white/[0.05] hover:text-white"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-                    }`}
-                  >
-                    <span className="w-6 shrink-0 text-slate-400 transition group-hover:text-cyan-300">
-                      <DashboardIcon name={item.icon} />
-                    </span>
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              }
+      <div className="space-y-1">
+        {group.items.map((item) => {
+          const mappedTab =
+            item.id === "messages"
+              ? "inbox"
+              : item.id === "approvals"
+              ? "reviews"
+              : item.id;
 
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(mappedTab)}
-                  className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px] font-medium transition ${
-                    isActive
-                      ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-[0_10px_28px_rgba(37,99,235,0.22)]"
-                      : dark
-                      ? "text-slate-400 hover:bg-white/[0.05] hover:text-white"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-                  }`}
-                >
+          const isBilling = item.id === "billing";
+
+          const isActive =
+            !isBilling && activeTab === mappedTab;
+
+          if (isBilling) {
+            return (
+              <Link
+                key={item.id}
+                href="/plans"
+                className="group flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2.5 text-left text-[12px] font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100 hover:text-black hover:scale-[1.02]"
+              >
+                <span className="w-5 shrink-0 text-slate-500 transition-colors group-hover:text-black">
+                  <DashboardIcon name={item.icon} />
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  {item.label}
+                </span>
+              </Link>
+            );
+          }
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(mappedTab)}
+              className={`group flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-[12px] font-semibold transition-all duration-200 ${
+                isActive
+  ? "border-blue-600 bg-blue-600 text-white  scale-[1.02]"
+                  : "border-transparent text-slate-700 hover:bg-slate-100 hover:text-black hover:scale-[1.02]"
+              }`}
+            >
+              <span
+                className={`w-5 shrink-0 transition-colors ${
+                  isActive
+                    ? "text-white"
+                    : "text-slate-500 group-hover:text-black"
+                }`}
+              >
+                <DashboardIcon name={item.icon} />
+              </span>
+
+              <span className="min-w-0 flex-1">
+                {item.label}
+              </span>
+
+              {item.id === "approvals" &&
+                pendingApprovals.length > 0 && (
                   <span
-                    className={`w-5 shrink-0 ${
-                      isActive ? "text-white" : dark ? "text-slate-400 group-hover:text-cyan-300" : "text-slate-500"
+                    className={`min-w-[20px] rounded-full px-1.5 py-0.5 text-center text-[9px] font-black ${
+                      isActive
+                        ? "bg-white text-black"
+                        : "bg-slate-200 text-slate-700"
                     }`}
                   >
-                    <DashboardIcon name={item.icon} />
+                    {pendingApprovals.length}
                   </span>
-                  <span className="min-w-0 flex-1">{item.label}</span>
-                  {item.id === "approvals" && pendingApprovals.length > 0 && (
-                    <span className="text-[10px] font-black text-slate-300">
-                      {pendingApprovals.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
+                )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ))}
+</nav>
 
           <div
             className={`mt-4 rounded-xl border p-3 ${
               dark
                 ? "border-white/10 bg-white/[0.025]"
-                : "border-slate-200 bg-white"
+                : "bg-white"
             }`}
           >
             <div className="flex items-center gap-2 text-[12px] font-medium">
-              <span className="text-amber-300">♛</span>
+              <span className="text-gray-300">♛</span>
               <span>Free Trial</span>
             </div>
             <div className="mt-1 text-[18px] font-black tracking-[-0.04em]">
   {permanentFree ? (
     <>
       Permanent Free
-      <span className="ml-1 text-[10px] font-medium text-emerald-400">
+      <span className="ml-1 text-[10px] font-medium text-gray-400">
         active
       </span>
     </>
@@ -2070,7 +2111,7 @@ async function prepareBulkCampaign() {
 </div>
             <div className={`mt-2 h-1.5 overflow-hidden rounded-full ${dark ? "bg-white/10" : "bg-slate-200"}`}>
               <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
+                className="h-full rounded-full bg-gradient-to-r from-gray-500 to-gray-500"
                 style={{
   width: permanentFree
     ? "100%"
@@ -2088,7 +2129,7 @@ async function prepareBulkCampaign() {
             </div>
             <Link
               href="/plans"
-              className="mt-2.5 block rounded-lg bg-gradient-to-r from-purple-600 to-fuchsia-600 px-3 py-2.5 text-center text-[11px] font-black text-white transition hover:brightness-110"
+              className="mt-2.5 block rounded-lg bg-gradient-to-r from-gray-600 to-gray-600 px-3 py-2.5 text-center text-[11px] font-black text-white transition hover:brightness-110"
             >
               Upgrade Now
             </Link>
@@ -2098,11 +2139,11 @@ async function prepareBulkCampaign() {
         <div className="shrink-0 px-3.5 pb-3 pt-2">
           <div
             className={`rounded-xl border p-3 ${
-              dark ? "border-white/[0.07] bg-white/[0.02]" : "border-slate-200 bg-white"
+              dark ? "bg-white/[0.02]" : "bg-white"
             }`}
           >
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-base font-black text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-600 text-base font-black text-white">
                 {firstName.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
@@ -2145,19 +2186,9 @@ async function prepareBulkCampaign() {
                     {refreshing ? "Refreshing" : "Live"}
                   </button>
                   <button
-                    type="button"
-                    onClick={() => setDark((value) => !value)}
-                    aria-label={`Switch to ${dark ? "light" : "dark"} mode`}
-                    className={`flex h-8 w-8 items-center justify-center rounded-lg border ${
-                      dark ? "border-white/10 text-slate-300" : "border-slate-200 bg-white text-slate-700"
-                    }`}
-                  >
-                    {dark ? "☼" : "☾"}
-                  </button>
-                  <button
   type="button"
   onClick={() => setActiveTab("campaigns")}
-  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-[10px] font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition hover:bg-blue-500"
+  className="inline-flex items-center gap-2 rounded-lg bg-gray-600 px-3 py-2 text-[10px] font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition hover:bg-gray-500"
 >
   <span className="text-lg leading-none">+</span>
   New Campaign
@@ -2166,7 +2197,7 @@ async function prepareBulkCampaign() {
               </div>
 
               {(dataError || refreshError) && (
-                <p role="alert" className="mt-4 text-sm text-rose-400">
+                <p role="alert" className="mt-4 text-sm text-gray-400">
                   {refreshError ?? dataError}
                 </p>
               )}
@@ -2177,7 +2208,7 @@ async function prepareBulkCampaign() {
                     label: "Total Leads",
                     value: counts.total,
                     icon: "leads",
-                    accent: "blue",
+                    accent: "gray",
                     change: changes.total,
                     text: "this period",
                   },
@@ -2185,7 +2216,7 @@ async function prepareBulkCampaign() {
                     label: "Valid Leads",
                     value: counts.valid,
                     icon: "approvals",
-                    accent: "green",
+                    accent: "gray",
                     change: null,
                     text: counts.total ? `${((counts.valid / counts.total) * 100).toFixed(1)}% of total` : "0% of total",
                   },
@@ -2193,7 +2224,7 @@ async function prepareBulkCampaign() {
                     label: "Invalid Leads",
                     value: invalidLeadCount,
                     icon: "x",
-                    accent: "red",
+                    accent: "gray",
                     change: null,
                     text: counts.total ? `${((invalidLeadCount / counts.total) * 100).toFixed(1)}% of total` : "0% of total",
                   },
@@ -2201,26 +2232,26 @@ async function prepareBulkCampaign() {
                     label: "Emails Sent",
                     value: emailsSentCount,
                     icon: "campaigns",
-                    accent: "purple",
+                    accent: "gray",
                     change: null,
                     text: "from campaign deliveries",
                   },
                 ].map((stat) => {
                   const accent =
-                    stat.accent === "green"
-                      ? "text-emerald-300 bg-emerald-500/15 ring-emerald-400/10"
-                      : stat.accent === "red"
-                      ? "text-rose-300 bg-rose-500/15 ring-rose-400/10"
-                      : stat.accent === "purple"
-                      ? "text-violet-300 bg-violet-500/15 ring-violet-400/10"
-                      : "text-blue-300 bg-blue-500/15 ring-blue-400/10";
+                    stat.accent === "gray"
+                      ? "text-gray-300 bg-gray-500/15 ring-gray-400/10"
+                      : stat.accent === "gray"
+                      ? "text-gray-300 bg-gray-500/15 ring-gray-400/10"
+                      : stat.accent === "gray"
+                      ? "text-gray-300 bg-gray-500/15 ring-gray-400/10"
+                      : "text-gray-300 bg-gray-500/15 ring-gray-400/10";
                   return (
                     <div
                       key={stat.label}
                       className={`relative overflow-hidden rounded-xl border p-3 ${
                         dark
-                          ? "border-white/[0.08] bg-[#050505]/70"
-                          : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                          ? "border-white/[0.08] bg-white/70"
+                          : "bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
                       }`}
                     >
                       <div className="flex items-start gap-2.5">
@@ -2235,7 +2266,7 @@ async function prepareBulkCampaign() {
                           <div className={`text-[11px] ${dark ? "text-slate-300" : "text-slate-500"}`}>{stat.label}</div>
                           <div className="mt-1 text-[16px] font-black tracking-[-0.04em]">{stat.value.toLocaleString()}</div>
                           <div className={`mt-1 text-[11px] font-semibold ${
-                            stat.accent === "red" ? "text-rose-400" : stat.accent === "green" || stat.accent === "purple" || stat.accent === "blue" ? "text-emerald-400" : "text-slate-500"
+                            stat.accent === "gray" ? "text-gray-400" : stat.accent === "gray" || stat.accent === "gray" || stat.accent === "gray" ? "text-gray-400" : "text-slate-500"
                           }`}>
                             {stat.change !== null
                               ? `${stat.change > 0 ? "↑ +" : stat.change < 0 ? "↓ " : "• "}${Math.round(stat.change * 10) / 10}% ${stat.text}`
@@ -2251,10 +2282,10 @@ async function prepareBulkCampaign() {
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
                   <div
                     className={`h-full overflow-hidden rounded-xl border bg-black/20 ${
-                      dark ? "border-white/[0.08] bg-[#050505]" : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                      dark ? "border-white/[0.08] bg-white" : "bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
                     }`}
                   >
-                    <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3.5">
+                    <div className="flex items-center justify-between  border-white/[0.06] px-5 py-3.5">
                       <h2 className="text-[15px] font-black">Campaign Status</h2>
 
                   </div>
@@ -2265,9 +2296,9 @@ async function prepareBulkCampaign() {
                         background:
                           campaignStatusTotal === 0
                             ? dark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.08)"
-                            : `conic-gradient(#3b82f6 0 ${campaignStatus.active / campaignStatusTotal * 100}%, #22c55e ${campaignStatus.active / campaignStatusTotal * 100}% ${(campaignStatus.active + campaignStatus.completed) / campaignStatusTotal * 100}%, #8b5cf6 ${(campaignStatus.active + campaignStatus.completed) / campaignStatusTotal * 100}% ${(campaignStatus.active + campaignStatus.completed + campaignStatus.draft) / campaignStatusTotal * 100}%, #f59e0b ${(campaignStatus.active + campaignStatus.completed + campaignStatus.draft) / campaignStatusTotal * 100}% 100%)`
+                            : `conic-gradient(#737373 0 ${campaignStatus.active / campaignStatusTotal * 100}%, #737373 ${campaignStatus.active / campaignStatusTotal * 100}% ${(campaignStatus.active + campaignStatus.completed) / campaignStatusTotal * 100}%, #525252 ${(campaignStatus.active + campaignStatus.completed) / campaignStatusTotal * 100}% ${(campaignStatus.active + campaignStatus.completed + campaignStatus.draft) / campaignStatusTotal * 100}%, #a3a3a3 ${(campaignStatus.active + campaignStatus.completed + campaignStatus.draft) / campaignStatusTotal * 100}% 100%)`
                       }}>
-                        <div className={`absolute inset-[25px] flex flex-col items-center justify-center rounded-full ${dark ? "bg-[#050505]" : "bg-white"}`}>
+                        <div className={`absolute inset-[25px] flex flex-col items-center justify-center rounded-full ${dark ? "bg-white" : "bg-white"}`}>
                           <div className="text-3xl font-black">{campaignStatusTotal}</div>
                           <div className="text-xs text-slate-500">Total</div>
                         </div>
@@ -2275,10 +2306,10 @@ async function prepareBulkCampaign() {
 
                       <div className="min-w-0 w-full max-w-[250px] space-y-2.5">
                         {[
-                          ["Active", campaignStatus.active, "#3b82f6"],
-                          ["Completed", campaignStatus.completed, "#22c55e"],
-                          ["Draft", campaignStatus.draft, "#8b5cf6"],
-                          ["Paused", campaignStatus.paused, "#f59e0b"],
+                          ["Active", campaignStatus.active, "#737373"],
+                          ["Completed", campaignStatus.completed, "#737373"],
+                          ["Draft", campaignStatus.draft, "#525252"],
+                          ["Paused", campaignStatus.paused, "#a3a3a3"],
                         ].map(([label, value, color]) => {
                           const percent = campaignStatusTotal ? (Number(value) / campaignStatusTotal) * 100 : 0;
                           return (
@@ -2309,7 +2340,7 @@ async function prepareBulkCampaign() {
               <div className="h-full min-w-0" id="delivery-lifecycle">
                 <div
                   className={`h-full rounded-xl border p-4 md:p-5 ${
-                    dark ? "border-white/[0.08] bg-[#050505]" : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                    dark ? "border-white/[0.08] bg-white" : "bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
                   }`}
                 >
                   <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
@@ -2328,7 +2359,7 @@ async function prepareBulkCampaign() {
                       ["Pending", deliveryLifecycle.pending],
                       ["Sending", deliveryLifecycle.sending],
                       ["Accepted", deliveryLifecycle.accepted],
-                      ["Delivered", deliveryLifecycle.delivered],
+                      ["Delivegray", deliveryLifecycle.delivegray],
                       ["Bounced", deliveryLifecycle.bounced],
                       ["Failed", deliveryLifecycle.failed],
                     ].map(([label, value], index) => (
@@ -2340,13 +2371,13 @@ async function prepareBulkCampaign() {
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className={`rounded-lg border p-4 ${dark ? "border-emerald-400/10 bg-emerald-400/[0.03]" : "border-emerald-200 bg-emerald-50/60"}`}>
+                    <div className={`rounded-lg border p-4 ${dark ? "border-gray-400/10 bg-gray-400/[0.03]" : "border-gray-200 bg-gray-50/60"}`}>
                       <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Delivery rate</div>
-                      <div className="mt-2 text-3xl font-black text-emerald-400">{deliveryLifecycle.deliveryRate}%</div>
+                      <div className="mt-2 text-3xl font-black text-gray-400">{deliveryLifecycle.deliveryRate}%</div>
                     </div>
-                    <div className={`rounded-lg border p-4 ${dark ? "border-rose-400/10 bg-rose-400/[0.03]" : "border-rose-200 bg-rose-50/60"}`}>
+                    <div className={`rounded-lg border p-4 ${dark ? "border-gray-400/10 bg-gray-400/[0.03]" : "border-gray-200 bg-gray-50/60"}`}>
                       <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Bounce rate</div>
-                      <div className="mt-2 text-3xl font-black text-rose-400">{deliveryLifecycle.bounceRate}%</div>
+                      <div className="mt-2 text-3xl font-black text-gray-400">{deliveryLifecycle.bounceRate}%</div>
                     </div>
                   </div>
                 </div>
@@ -2357,10 +2388,10 @@ async function prepareBulkCampaign() {
               <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <div
                   className={`h-full overflow-hidden rounded-xl border ${
-                    dark ? "border-white/[0.08] bg-[#050505]" : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                    dark ? "border-white/[0.08] bg-white" : "bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
                   }`}
                 >
-                  <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+                  <div className="flex items-center justify-between  border-white/[0.06] px-4 py-3">
                     <h2 className="text-[15px] font-black">Recent Campaigns</h2>
                     <button
                       type="button"
@@ -2382,15 +2413,15 @@ async function prepareBulkCampaign() {
                         const iconName = index === 0 ? "campaigns" : index === 1 ? "messages" : "leads";
                         const statusClass =
                           campaign.status === "active"
-                            ? "bg-emerald-500/15 text-emerald-300"
+                            ? "bg-gray-500/15 text-gray-300"
                             : campaign.status === "paused"
-                            ? "bg-amber-500/15 text-amber-300"
+                            ? "bg-gray-500/15 text-gray-300"
                             : campaign.status === "completed"
-                            ? "bg-blue-500/15 text-blue-300"
-                            : "bg-violet-500/15 text-violet-300";
+                            ? "bg-gray-500/15 text-gray-300"
+                            : "bg-gray-500/15 text-gray-300";
                         return (
                           <div key={campaign.id} className="flex items-center gap-3 px-4 py-3">
-                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${index === 0 ? "bg-blue-500/20 text-blue-300" : index === 1 ? "bg-emerald-500/20 text-emerald-300" : "bg-violet-500/20 text-violet-300"}`}>
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${index === 0 ? "bg-gray-500/20 text-gray-300" : index === 1 ? "bg-gray-500/20 text-gray-300" : "bg-gray-500/20 text-gray-300"}`}>
                               <DashboardIcon name={iconName} />
                             </div>
                             <div className="min-w-0 flex-1">
@@ -2401,7 +2432,7 @@ async function prepareBulkCampaign() {
                             </div>
                             <div className="hidden grid-cols-3 gap-5 md:grid">
                               <div className="text-center"><div className="text-sm font-black">{deliveryStats.sent}</div><div className="text-[10px] text-slate-500">Sent</div></div>
-                              <div className="text-center"><div className="text-sm font-black">{deliveryStats.delivered}</div><div className="text-[10px] text-slate-500">Delivered</div></div>
+                              <div className="text-center"><div className="text-sm font-black">{deliveryStats.delivegray}</div><div className="text-[10px] text-slate-500">Delivegray</div></div>
                               <div className="text-center"><div className="text-sm font-black">{deliveryStats.failed}</div><div className="text-[10px] text-slate-500">Failed</div></div>
                             </div>
                             <span className={`rounded-md px-2.5 py-1 text-[10px] font-bold capitalize ${statusClass}`}>{campaign.status}</span>
@@ -2416,10 +2447,10 @@ async function prepareBulkCampaign() {
 
                 <div
                   className={`h-full overflow-hidden rounded-xl border ${
-                    dark ? "border-white/[0.08] bg-[#050505]" : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                    dark ? "border-white/[0.08] bg-white" : "bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
                   }`}
                 >
-                  <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+                  <div className="flex items-center justify-between  border-white/[0.06] px-4 py-3">
                     <h2 className="text-[15px] font-black">Approval Queue</h2>
                     <button type="button" onClick={() => setActiveTab("reviews")} className={`rounded-lg border px-3 py-2 text-[11px] font-semibold ${dark ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600"}`}>
                       View All
@@ -2439,14 +2470,14 @@ async function prepareBulkCampaign() {
                           .toUpperCase();
                         return (
                           <div key={lead.id} className="flex items-center gap-3 px-4 py-3">
-                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-black text-white ${index === 0 ? "bg-blue-600" : index === 1 ? "bg-emerald-600" : "bg-violet-600"}`}>
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-black text-white ${index === 0 ? "bg-gray-600" : index === 1 ? "bg-gray-600" : "bg-gray-600"}`}>
                               {initials || "L"}
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="truncate text-sm font-bold">{lead.name}</div>
                               <div className="truncate text-[11px] text-slate-500">{lead.email}</div>
                             </div>
-                            <span className="hidden rounded-full bg-blue-500/15 px-3 py-1 text-[10px] font-semibold text-blue-300 sm:block">Personalization</span>
+                            <span className="hidden rounded-full bg-gray-500/15 px-3 py-1 text-[10px] font-semibold text-gray-300 sm:block">Personalization</span>
                             <span className="w-12 text-right text-[10px] text-slate-500">{relativeTime((lead as Lead & { created_at?: string }).created_at)}</span>
                           </div>
                         );
@@ -2454,9 +2485,9 @@ async function prepareBulkCampaign() {
                     )}
                   </div>
 
-                  <div className={`flex items-center justify-between border-t px-5 py-3.5 ${dark ? "border-white/[0.06]" : "border-slate-200"}`}>
-                    <span className="text-xs font-semibold text-blue-400">{pendingApprovals.length} pending approvals</span>
-                    <button type="button" onClick={() => setActiveTab("reviews")} className="text-xs font-semibold text-blue-400">Review All →</button>
+                  <div className={`flex items-center justify-between  px-5 py-3.5 ${dark ? "border-white/[0.06]" : "border-slate-200"}`}>
+                    <span className="text-xs font-semibold text-gray-400">{pendingApprovals.length} pending approvals</span>
+                    <button type="button" onClick={() => setActiveTab("reviews")} className="text-xs font-semibold text-gray-400">Review All →</button>
                   </div>
                 </div>
               </div>
@@ -2490,7 +2521,7 @@ async function prepareBulkCampaign() {
                     className={`cursor-pointer rounded-xl border px-3 py-2 text-[11px] font-black transition ${
                       dark
                         ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
-                        : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                        : "bg-white text-slate-800 hover:bg-slate-50"
                     } ${
                       importing
                         ? "pointer-events-none opacity-60"
@@ -2506,7 +2537,7 @@ async function prepareBulkCampaign() {
                     className={`rounded-xl border px-3 py-2 text-[11px] font-black transition ${
                       dark
                         ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
-                        : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                        : "bg-white text-slate-800 hover:bg-slate-50"
                     }`}
                   >
                     Download Template
@@ -2519,7 +2550,7 @@ async function prepareBulkCampaign() {
                 className={`grid grid-cols-1 gap-2.5 rounded-2xl border p-4 md:grid-cols-3 ${
                   dark
                     ? "border-white/10 bg-white/[0.03]"
-                    : "border-slate-200 bg-white"
+                    : "bg-white"
                 }`}
               >
                 <input
@@ -2535,7 +2566,7 @@ async function prepareBulkCampaign() {
                   className={`rounded-xl border px-3 py-2 text-xs ${
                     dark
                       ? "border-white/10 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-900"
+                      : "bg-white text-slate-900"
                   }`}
                 />
 
@@ -2553,7 +2584,7 @@ async function prepareBulkCampaign() {
                   className={`rounded-xl border px-3 py-2 text-xs ${
                     dark
                       ? "border-white/10 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-900"
+                      : "bg-white text-slate-900"
                   }`}
                 />
 
@@ -2570,7 +2601,7 @@ async function prepareBulkCampaign() {
                   className={`rounded-xl border px-3 py-2 text-xs ${
                     dark
                       ? "border-white/10 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-900"
+                      : "bg-white text-slate-900"
                   }`}
                 />
 
@@ -2586,7 +2617,7 @@ async function prepareBulkCampaign() {
                   className={`rounded-xl border px-3 py-2 text-xs ${
                     dark
                       ? "border-white/10 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-900"
+                      : "bg-white text-slate-900"
                   }`}
                 />
 
@@ -2601,7 +2632,7 @@ async function prepareBulkCampaign() {
                   className={`rounded-xl border px-3 py-2 text-xs ${
                     dark
                       ? "border-white/10 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-900"
+                      : "bg-white text-slate-900"
                   }`}
                 >
                   <option value="new">New</option>
@@ -2613,7 +2644,7 @@ async function prepareBulkCampaign() {
                 <button
                   type="submit"
                   disabled={pending}
-                  className="rounded-xl bg-cyan-500 px-3 py-2.5 text-xs font-black text-white disabled:opacity-60"
+                  className="rounded-xl bg-gray-500 px-3 py-2.5 text-xs font-black text-white disabled:opacity-60"
                 >
                   {pending
                     ? "Saving..."
@@ -2624,21 +2655,21 @@ async function prepareBulkCampaign() {
               </form>
 
               {leadError && (
-                <p role="alert" className="text-xs text-rose-400">
+                <p role="alert" className="text-xs text-gray-400">
                   {leadError}
                 </p>
               )}
 
               {importSummary && (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+                <div className="rounded-xl border border-gray-500/30 bg-gray-500/10 p-4 text-sm text-gray-300">
                   {importSummary}
                 </div>
               )}
               <div
   className={`rounded-2xl border p-4 ${
     dark
-      ? "border-purple-500/20 bg-purple-500/[0.05]"
-      : "border-slate-200 bg-white"
+      ? "border-gray-500/20 bg-gray-500/[0.05]"
+      : "bg-white"
   }`}
 >
   <div className="flex flex-col gap-3">
@@ -2653,7 +2684,7 @@ async function prepareBulkCampaign() {
         </p>
       </div>
 
-      <span className="text-xs font-bold text-cyan-400">
+      <span className="text-xs font-bold text-gray-400">
         {selectedLeadIds.length} selected
       </span>
     </div>
@@ -2666,7 +2697,7 @@ async function prepareBulkCampaign() {
       className={`w-full rounded-xl border px-3 py-2 text-xs ${
         dark
           ? "border-white/10 bg-slate-900 text-white"
-          : "border-slate-200 bg-white text-slate-900"
+          : "bg-white text-slate-900"
       }`}
     >
       <option value="">Select campaign</option>
@@ -2693,7 +2724,7 @@ async function prepareBulkCampaign() {
   className={`w-full rounded-xl border px-3 py-2 text-xs ${
     dark
       ? "border-white/10 bg-slate-900 text-white"
-      : "border-slate-200 bg-white text-slate-900"
+      : "bg-white text-slate-900"
   }`}
 >
   <option value="">Select sending Gmail</option>
@@ -2746,7 +2777,7 @@ async function prepareBulkCampaign() {
           !selectedCampaignId ||
           !selectedLeadIds.length
         }
-        className="rounded-xl bg-purple-600 px-3 py-1.5 text-[11px] font-black text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-xl bg-gray-600 px-3 py-1.5 text-[11px] font-black text-white transition hover:bg-gray-500 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {bulkOutreachLoading
           ? "Preparing..."
@@ -2754,32 +2785,32 @@ async function prepareBulkCampaign() {
       </button>
       <button
   type="button"
-  onClick={sendPreparedDelivery}
+  onClick={sendPrepagrayDelivery}
   disabled={
   sendDeliveryLoading ||
-  preparedDeliveryIds.length === 0 ||
+  prepagrayDeliveryIds.length === 0 ||
   !selectedInboxId
 }
-  className="rounded-xl bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+  className="rounded-xl bg-gray-500 px-3 py-1.5 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
 >
-  {sendDeliveryLoading ? "Sending..." : "Send Prepared Email"}
+  {sendDeliveryLoading ? "Sending..." : "Send Prepagray Email"}
 </button>
     </div>
 
     {campaigns.length === 0 && (
-      <p className="text-xs text-amber-400">
+      <p className="text-xs text-gray-400">
         Create a campaign with an outreach template first.
       </p>
     )}
 
     {bulkOutreachError && (
-      <p role="alert" className="text-xs text-rose-400">
+      <p role="alert" className="text-xs text-gray-400">
         {bulkOutreachError}
       </p>
     )}
 
     {bulkOutreachMessage && (
-      <p className="text-xs text-emerald-400">
+      <p className="text-xs text-gray-400">
         {bulkOutreachMessage}
       </p>
     )}
@@ -2797,7 +2828,7 @@ async function prepareBulkCampaign() {
   className={`relative rounded-xl border p-3 ${
                         dark
                           ? "border-white/10 bg-white/[0.03]"
-                          : "border-slate-200 bg-white"
+                          : "bg-white"
                       }`}
                       
                     >
@@ -2806,7 +2837,7 @@ async function prepareBulkCampaign() {
   checked={selectedLeadIds.includes(lead.id)}
   onChange={() => toggleLeadSelection(lead.id)}
   aria-label={`Select ${lead.name} for bulk outreach`}
-  className="absolute left-4 top-4 h-4 w-4 cursor-pointer accent-cyan-500"
+  className="absolute left-4 top-4 h-4 w-4 cursor-pointer accent-gray-500"
 />
                        <div className="flex flex-col justify-between gap-3 pl-7 md:flex-row">
                         <div>
@@ -2824,7 +2855,7 @@ async function prepareBulkCampaign() {
                           </div>
 
                           {lead.validation_status && (
-                            <div className="mt-0.5 text-[11px] text-cyan-400">
+                            <div className="mt-0.5 text-[11px] text-gray-400">
                               Email: {lead.validation_status}
                             </div>
                           )}
@@ -2834,7 +2865,7 @@ async function prepareBulkCampaign() {
                           <button
                             type="button"
                             onClick={() => editLead(lead)}
-                            className="rounded-lg bg-blue-500/10 px-2.5 py-1.5 text-[11px] font-bold text-blue-400"
+                            className="rounded-lg bg-gray-500/10 px-2.5 py-1.5 text-[11px] font-bold text-gray-400"
                           >
                             Edit
                           </button>
@@ -2842,7 +2873,7 @@ async function prepareBulkCampaign() {
                           <button
                             type="button"
                             onClick={() => void validateLead(lead.id)}
-                            className="rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[11px] font-bold text-white"
+                            className="rounded-lg bg-gray-500 px-2.5 py-1.5 text-[11px] font-bold text-white"
                           >
                             Validate
                           </button>
@@ -2853,7 +2884,7 @@ async function prepareBulkCampaign() {
                               void generateAiMessage(lead.id)
                             }
                             disabled={aiLoadingId === lead.id}
-                            className="rounded-lg bg-purple-500 px-2.5 py-1.5 text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-lg bg-gray-500 px-2.5 py-1.5 text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {aiLoadingId === lead.id
                               ? "Generating..."
@@ -2863,7 +2894,7 @@ async function prepareBulkCampaign() {
                           <button
                             type="button"
                             onClick={() => void removeLead(lead.id)}
-                            className="rounded-lg bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-bold text-rose-400"
+                            className="rounded-lg bg-gray-500/10 px-2.5 py-1.5 text-[11px] font-bold text-gray-400"
                           >
                             Delete
                           </button>
@@ -2883,7 +2914,7 @@ async function prepareBulkCampaign() {
       <button
         type="button"
         onClick={() => void copyAiMessage(lead.id)}
-        className="rounded-lg bg-emerald-500 px-2.5 py-1.5 text-[11px] font-black text-white transition hover:bg-emerald-600"
+        className="rounded-lg bg-gray-500 px-2.5 py-1.5 text-[11px] font-black text-white transition hover:bg-gray-600"
       >
         Copy Email
       </button>
@@ -2899,10 +2930,10 @@ async function prepareBulkCampaign() {
         }))
       }
       placeholder="AI-generated subject"
-      className={`w-full rounded-xl border px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-purple-500 ${
+      className={`w-full rounded-xl border px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-gray-500 ${
         dark
           ? "border-white/10 bg-slate-900 text-white"
-          : "border-slate-200 bg-white text-slate-900"
+          : "bg-white text-slate-900"
       }`}
     />
 
@@ -2918,10 +2949,10 @@ async function prepareBulkCampaign() {
       rows={6}
       spellCheck={false}
       aria-label="Generated AI outreach message"
-      className={`w-full resize-y rounded-xl border p-3 text-xs leading-5 whitespace-pre-wrap outline-none focus:ring-2 focus:ring-purple-500 ${
+      className={`w-full resize-y rounded-xl border p-3 text-xs leading-5 whitespace-pre-wrap outline-none focus:ring-2 focus:ring-gray-500 ${
         dark
           ? "border-white/10 bg-slate-900 text-slate-100"
-          : "border-slate-200 bg-white text-slate-900"
+          : "bg-white text-slate-900"
       }`}
     />
 
@@ -2934,7 +2965,7 @@ async function prepareBulkCampaign() {
         type="button"
         onClick={() => void generateAiMessage(lead.id)}
         disabled={aiLoadingId === lead.id}
-        className="rounded-lg bg-purple-500 px-3 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-lg bg-gray-500 px-3 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
       >
         {aiLoadingId === lead.id
           ? "Generating..."
@@ -2966,7 +2997,7 @@ async function prepareBulkCampaign() {
         Loading templates...
       </p>
     ) : outreachTemplates.length === 0 ? (
-      <p className="text-xs text-amber-400">
+      <p className="text-xs text-gray-400">
         No templates found. Create one in Templates first.
       </p>
     ) : (
@@ -2982,7 +3013,7 @@ async function prepareBulkCampaign() {
           className={`w-full rounded-xl border px-3 py-2 text-xs ${
             dark
               ? "border-white/10 bg-slate-900 text-white"
-              : "border-slate-200 bg-white text-slate-900"
+              : "bg-white text-slate-900"
           }`}
         >
           <option value="">
@@ -3012,7 +3043,7 @@ async function prepareBulkCampaign() {
             className={`w-full rounded-xl border px-3 py-2 text-xs ${
               dark
                 ? "border-white/10 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-900"
+                : "bg-white text-slate-900"
             }`}
           />
         )}
@@ -3031,7 +3062,7 @@ async function prepareBulkCampaign() {
               className={`w-full resize-y rounded-xl border p-3 text-xs leading-5 outline-none ${
                 dark
                   ? "border-white/10 bg-slate-900 text-slate-100"
-                  : "border-slate-200 bg-white text-slate-900"
+                  : "bg-white text-slate-900"
               }`}
             />
 
@@ -3041,7 +3072,7 @@ async function prepareBulkCampaign() {
                 onClick={() =>
                   void copyOutreachMessage(lead.id)
                 }
-                className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-600"
+                className="rounded-lg bg-gray-500 px-4 py-2 text-xs font-black text-white transition hover:bg-gray-600"
               >
                 Copy Message
               </button>
@@ -3052,7 +3083,7 @@ async function prepareBulkCampaign() {
     )}
 
     {templatesError && (
-      <p className="text-xs text-rose-400">
+      <p className="text-xs text-gray-400">
         {templatesError}
       </p>
     )}
@@ -3109,8 +3140,8 @@ async function prepareBulkCampaign() {
           <div
             className={`w-full max-w-sm rounded-2xl border p-6 ${
               dark
-                ? "border-white/10 bg-[#050505]"
-                : "border-slate-200 bg-white"
+                ? "border-white/10 bg-white"
+                : "bg-white"
             }`}
             onClick={(event) => event.stopPropagation()}
           >
@@ -3134,7 +3165,7 @@ async function prepareBulkCampaign() {
               <form action="/api/auth/logout" method="post">
                 <button
                   type="submit"
-                  className="rounded-xl bg-rose-500 px-4 py-2 text-sm font-black text-white"
+                  className="rounded-xl bg-gray-500 px-4 py-2 text-sm font-black text-white"
                 >
                   Logout
                 </button>
@@ -3146,3 +3177,10 @@ async function prepareBulkCampaign() {
     </main>
   );
 }
+
+
+
+
+
+
+

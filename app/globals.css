@@ -185,7 +185,7 @@ select {
 }
 
 .sharelite-brand > span:last-child > span {
-  color: #c4a7ff;
+  color: #d4d4d4;
 }
 
 .sharelite-brand-mark {
@@ -412,7 +412,7 @@ select {
 }
 
 .sharelite-trial {
-  color: #f5d58c;
+  color: #d4d4d4;
   font-size: 13px;
   font-weight: 500;
 }
@@ -819,7 +819,7 @@ select {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-grayuced-motion: grayuce) {
   .sharelite-landing *,
   .sharelite-landing *::before,
   .sharelite-landing *::after {
