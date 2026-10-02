@@ -12,7 +12,13 @@ export type Profile = {
 
 export type LeadStatus = "new" | "valid" | "contacted" | "converted";
 
-export type EmailValidationStatus = "unknown" | "valid" | "invalid" | "risky" | "disposable" | "error";
+export type EmailValidationStatus =
+  | "unknown"
+  | "valid"
+  | "invalid"
+  | "risky"
+  | "disposable"
+  | "error";
 
 export type ReviewStatus = "draft" | "published";
 
@@ -50,6 +56,11 @@ export type Lead = {
   validation_status: EmailValidationStatus;
   validation_reason: string | null;
   validated_at: string | null;
+
+  // Geo Analytics
+  country_code: string | null;
+  country_name: string | null;
+
   created_at: string;
   updated_at: string;
 };
@@ -61,6 +72,10 @@ export type LeadInput = {
   website?: string | null;
   status?: LeadStatus;
   source?: string | null;
+
+  // Geo Analytics
+  country_code?: string | null;
+  country_name?: string | null;
 };
 
 export type LeadCounts = {
@@ -75,8 +90,13 @@ function getRestUrl() {
   return `${url}/rest/v1`;
 }
 
-async function supabaseRequest<T>(accessToken: string, path: string, init?: RequestInit): Promise<T> {
+async function supabaseRequest<T>(
+  accessToken: string,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const { key } = getConfig();
+
   const response = await fetch(`${getRestUrl()}${path}`, {
     ...init,
     headers: {
@@ -87,39 +107,68 @@ async function supabaseRequest<T>(accessToken: string, path: string, init?: Requ
     },
     cache: "no-store",
   });
+
   if (!response.ok) {
     const body = await response.text();
-    console.error("ShareLite Supabase request failed", { path, status: response.status, body: body.slice(0, 1000) });
+
+    console.error("ShareLite Supabase request failed", {
+      path,
+      status: response.status,
+      body: body.slice(0, 1000),
+    });
+
     throw new Error(`Database request failed (${response.status}).`);
   }
-  if (response.status === 204) return undefined as T;
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json() as Promise<T>;
 }
 
-export async function requireAuthenticatedUser(): Promise<{ user: AuthUser; accessToken: string }> {
+export async function requireAuthenticatedUser(): Promise<{
+  user: AuthUser;
+  accessToken: string;
+}> {
   const session = await getCurrentSession();
-  if (!session) throw new Error("UNAUTHENTICATED");
+
+  if (!session) {
+    throw new Error("UNAUTHENTICATED");
+  }
+
   return session;
 }
 
 export async function getProfile(accessToken: string, userId: string) {
-  const rows = await supabaseRequest<Profile[]>(accessToken, `/profiles?id=eq.${encodeURIComponent(userId)}&select=*`);
+  const rows = await supabaseRequest<Profile[]>(
+    accessToken,
+    `/profiles?id=eq.${encodeURIComponent(userId)}&select=*`,
+  );
+
   return rows[0] ?? null;
 }
 
 export async function listLeads(accessToken: string) {
-  return supabaseRequest<Lead[]>(accessToken, "/leads?select=*&order=created_at.desc");
+  return supabaseRequest<Lead[]>(
+    accessToken,
+    "/leads?select=*&order=created_at.desc",
+  );
 }
 
 export async function getLead(accessToken: string, leadId: string) {
-  const rows = await supabaseRequest<Lead[]>(accessToken, `/leads?id=eq.${encodeURIComponent(leadId)}&select=*`);
+  const rows = await supabaseRequest<Lead[]>(
+    accessToken,
+    `/leads?id=eq.${encodeURIComponent(leadId)}&select=*`,
+  );
+
   return rows[0] ?? null;
 }
 
 export async function createLeads(
   accessToken: string,
   userId: string,
-  inputs: LeadInput[]
+  inputs: LeadInput[],
 ) {
   if (inputs.length === 0) {
     return [];
@@ -137,78 +186,175 @@ export async function createLeads(
         inputs.map((input) => ({
           ...input,
           user_id: userId,
-        }))
+        })),
       ),
-    }
+    },
   );
 }
 
-export async function createLead(accessToken: string, userId: string, input: LeadInput) {
-  return supabaseRequest<Lead[]>(accessToken, "/leads?select=*", {
-    method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify({ ...input, user_id: userId }),
-  }).then((rows) => rows[0]);
+export async function createLead(
+  accessToken: string,
+  userId: string,
+  input: LeadInput,
+) {
+  const rows = await supabaseRequest<Lead[]>(
+    accessToken,
+    "/leads?select=*",
+    {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        ...input,
+        user_id: userId,
+      }),
+    },
+  );
+
+  return rows[0];
 }
 
-export async function updateLead(accessToken: string, leadId: string, input: Partial<LeadInput>) {
-  const rows = await supabaseRequest<Lead[]>(accessToken, `/leads?id=eq.${encodeURIComponent(leadId)}&select=*`, {
-    method: "PATCH",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify(input),
-  });
+export async function updateLead(
+  accessToken: string,
+  leadId: string,
+  input: Partial<LeadInput>,
+) {
+  const rows = await supabaseRequest<Lead[]>(
+    accessToken,
+    `/leads?id=eq.${encodeURIComponent(leadId)}&select=*`,
+    {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
   return rows[0] ?? null;
 }
 
-export async function updateLeadValidation(accessToken: string, leadId: string, status: EmailValidationStatus, reason: string) {
-  const rows = await supabaseRequest<Lead[]>(accessToken, `/leads?id=eq.${encodeURIComponent(leadId)}&select=*`, {
-    method: "PATCH",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify({ validation_status: status, validation_reason: reason, validated_at: new Date().toISOString() }),
-  });
+export async function updateLeadValidation(
+  accessToken: string,
+  leadId: string,
+  status: EmailValidationStatus,
+  reason: string,
+) {
+  const rows = await supabaseRequest<Lead[]>(
+    accessToken,
+    `/leads?id=eq.${encodeURIComponent(leadId)}&select=*`,
+    {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        validation_status: status,
+        validation_reason: reason,
+        validated_at: new Date().toISOString(),
+      }),
+    },
+  );
+
   return rows[0] ?? null;
 }
 
-export async function deleteLead(accessToken: string, leadId: string) {
-  const rows = await supabaseRequest<Lead[]>(accessToken, `/leads?id=eq.${encodeURIComponent(leadId)}&select=id`, {
-    method: "DELETE",
-    headers: { Prefer: "return=representation" },
-  });
+export async function deleteLead(
+  accessToken: string,
+  leadId: string,
+) {
+  const rows = await supabaseRequest<{ id: string }[]>(
+    accessToken,
+    `/leads?id=eq.${encodeURIComponent(leadId)}&select=id`,
+    {
+      method: "DELETE",
+      headers: {
+        Prefer: "return=representation",
+      },
+    },
+  );
+
   return rows.length > 0;
 }
 
 export async function listReviews(accessToken: string) {
-  return supabaseRequest<Review[]>(accessToken, "/reviews?select=*&order=created_at.desc");
+  return supabaseRequest<Review[]>(
+    accessToken,
+    "/reviews?select=*&order=created_at.desc",
+  );
 }
 
-export async function getReview(accessToken: string, reviewId: string) {
-  const rows = await supabaseRequest<Review[]>(accessToken, `/reviews?id=eq.${encodeURIComponent(reviewId)}&select=*`);
+export async function getReview(
+  accessToken: string,
+  reviewId: string,
+) {
+  const rows = await supabaseRequest<Review[]>(
+    accessToken,
+    `/reviews?id=eq.${encodeURIComponent(reviewId)}&select=*`,
+  );
+
   return rows[0] ?? null;
 }
 
-export async function createReview(accessToken: string, userId: string, input: ReviewInput) {
-  const rows = await supabaseRequest<Review[]>(accessToken, "/reviews?select=*", {
-    method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify({ ...input, user_id: userId }),
-  });
+export async function createReview(
+  accessToken: string,
+  userId: string,
+  input: ReviewInput,
+) {
+  const rows = await supabaseRequest<Review[]>(
+    accessToken,
+    "/reviews?select=*",
+    {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        ...input,
+        user_id: userId,
+      }),
+    },
+  );
+
   return rows[0];
 }
 
-export async function updateReview(accessToken: string, reviewId: string, input: Partial<ReviewInput>) {
-  const rows = await supabaseRequest<Review[]>(accessToken, `/reviews?id=eq.${encodeURIComponent(reviewId)}&select=*`, {
-    method: "PATCH",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify(input),
-  });
+export async function updateReview(
+  accessToken: string,
+  reviewId: string,
+  input: Partial<ReviewInput>,
+) {
+  const rows = await supabaseRequest<Review[]>(
+    accessToken,
+    `/reviews?id=eq.${encodeURIComponent(reviewId)}&select=*`,
+    {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
   return rows[0] ?? null;
 }
 
-export async function deleteReview(accessToken: string, reviewId: string) {
-  const rows = await supabaseRequest<{ id: string }[]>(accessToken, `/reviews?id=eq.${encodeURIComponent(reviewId)}&select=id`, {
-    method: "DELETE",
-    headers: { Prefer: "return=representation" },
-  });
+export async function deleteReview(
+  accessToken: string,
+  reviewId: string,
+) {
+  const rows = await supabaseRequest<{ id: string }[]>(
+    accessToken,
+    `/reviews?id=eq.${encodeURIComponent(reviewId)}&select=id`,
+    {
+      method: "DELETE",
+      headers: {
+        Prefer: "return=representation",
+      },
+    },
+  );
+
   return rows.length > 0;
 }
 
@@ -216,13 +362,13 @@ export function countLeads(leads: Lead[]): LeadCounts {
   return {
     total: leads.length,
     valid: leads.filter(
-      (lead) => lead.validation_status === "valid"
+      (lead) => lead.validation_status === "valid",
     ).length,
     contacted: leads.filter(
-      (lead) => lead.status === "contacted"
+      (lead) => lead.status === "contacted",
     ).length,
     converted: leads.filter(
-      (lead) => lead.status === "converted"
+      (lead) => lead.status === "converted",
     ).length,
   };
 }

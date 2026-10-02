@@ -9,20 +9,33 @@ import {
   type LeadStatus,
 } from "@/lib/supabase-db";
 
-import { getCurrentEntitlements, hasCapacity } from "@/lib/monetization";
+import {
+  getCurrentEntitlements,
+  hasCapacity,
+} from "@/lib/monetization";
 
 export const dynamic = "force-dynamic";
 
-const statuses: LeadStatus[] = ["new", "valid", "contacted", "converted"];
+const statuses: LeadStatus[] = [
+  "new",
+  "valid",
+  "contacted",
+  "converted",
+];
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function parseInput(value: unknown): LeadInput | null {
-  if (!value || typeof value !== "object") return null;
+  if (!value || typeof value !== "object") {
+    return null;
+  }
 
   const body = value as Record<string, unknown>;
 
-  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const name =
+    typeof body.name === "string"
+      ? body.name.trim()
+      : "";
 
   const email =
     typeof body.email === "string"
@@ -55,11 +68,14 @@ function parseInput(value: unknown): LeadInput | null {
     name,
     email,
     company,
+
     website:
       typeof body.website === "string"
         ? body.website.trim() || null
         : null,
+
     status,
+
     source:
       typeof body.source === "string"
         ? body.source.trim() || null
@@ -67,9 +83,45 @@ function parseInput(value: unknown): LeadInput | null {
   };
 }
 
+function getCountryFromRequest(
+  request: Request,
+): {
+  countryCode: string | null;
+  countryName: string | null;
+} {
+  const rawCountry =
+    request.headers.get("x-vercel-ip-country")?.trim().toUpperCase() ?? "";
+
+  if (!/^[A-Z]{2}$/.test(rawCountry)) {
+    return {
+      countryCode: null,
+      countryName: null,
+    };
+  }
+
+  let countryName: string | null = null;
+
+  try {
+    const displayNames = new Intl.DisplayNames(["en"], {
+      type: "region",
+    });
+
+    countryName =
+      displayNames.of(rawCountry) ?? null;
+  } catch {
+    countryName = null;
+  }
+
+  return {
+    countryCode: rawCountry,
+    countryName,
+  };
+}
+
 export async function GET() {
   try {
-    const { accessToken } = await requireAuthenticatedUser();
+    const { accessToken } =
+      await requireAuthenticatedUser();
 
     const leads = await listLeads(accessToken);
 
@@ -114,10 +166,14 @@ export async function POST(request: Request) {
     const { user, accessToken } =
       await requireAuthenticatedUser();
 
-    const [leads, entitlements] = await Promise.all([
-      listLeads(accessToken),
-      getCurrentEntitlements(accessToken, user.id),
-    ]);
+    const [leads, entitlements] =
+      await Promise.all([
+        listLeads(accessToken),
+        getCurrentEntitlements(
+          accessToken,
+          user.id,
+        ),
+      ]);
 
     if (
       !hasCapacity(
@@ -127,15 +183,27 @@ export async function POST(request: Request) {
       )
     ) {
       return NextResponse.json(
-        { error: "Lead limit reached for your plan." },
+        {
+          error:
+            "Lead limit reached for your plan.",
+        },
         { status: 403 },
       );
     }
 
+    const {
+      countryCode,
+      countryName,
+    } = getCountryFromRequest(request);
+
     const lead = await createLead(
       accessToken,
       user.id,
-      input,
+      {
+        ...input,
+        country_code: countryCode,
+        country_name: countryName,
+      },
     );
 
     return NextResponse.json(
@@ -152,6 +220,11 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     }
+
+    console.error(
+      "ShareLite lead creation failed",
+      error,
+    );
 
     return NextResponse.json(
       { error: "Unable to create lead." },

@@ -28,6 +28,7 @@ export type SubscriptionStatus =
 
 export type Feature =
   | "advancedAnalytics"
+  | "geoAnalytics"
   | "bulkOutreach"
   | "automation"
   | "aiUsage"
@@ -60,6 +61,7 @@ export type PlanConfig = {
 
 const BASE_FEATURES: Record<Feature, boolean> = {
   advancedAnalytics: true,
+  geoAnalytics: true,
   bulkOutreach: true,
   automation: true,
   aiUsage: true,
@@ -113,6 +115,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
     features: {
       ...BASE_FEATURES,
       advancedAnalytics: true,
+        geoAnalytics: true,
       bulkOutreach: true,
       automation: true,
       aiUsage: true,
@@ -136,6 +139,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       ...BASE_FEATURES,
       aiIcebreakers: true,
       advancedAnalytics: true,
+        geoAnalytics: true,
       bulkOutreach: true,
       automation: true,
     },
@@ -194,6 +198,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       advancedApi: true,
       dedicatedSupport: true,
       advancedAnalytics: true,
+        geoAnalytics: true,
       bulkOutreach: true,
       automation: true,
     },
@@ -224,6 +229,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       advancedApi: true,
       dedicatedSupport: true,
       advancedAnalytics: true,
+        geoAnalytics: true,
       bulkOutreach: true,
       automation: true,
     },
@@ -254,6 +260,7 @@ export const PLAN_CONFIG: Record<Plan, PlanConfig> = {
       advancedApi: true,
       dedicatedSupport: true,
       advancedAnalytics: true,
+        geoAnalytics: true,
       bulkOutreach: true,
       automation: true,
     },
