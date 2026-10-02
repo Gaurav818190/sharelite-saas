@@ -24,6 +24,19 @@ const statuses: LeadStatus[] = [
 ];
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const countryCodePattern = /^[A-Z]{2}$/;
+
+function getCountryName(countryCode: string): string | null {
+  try {
+    const displayNames = new Intl.DisplayNames(["en"], {
+      type: "region",
+    });
+
+    return displayNames.of(countryCode) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function parseInput(value: unknown): LeadInput | null {
   if (!value || typeof value !== "object") {
@@ -53,13 +66,33 @@ function parseInput(value: unknown): LeadInput | null {
       ? (body.status as LeadStatus)
       : "new";
 
+  const rawCountryCode =
+    typeof body.country_code === "string"
+      ? body.country_code.trim().toUpperCase()
+      : "";
+
+  const countryCode =
+    rawCountryCode && countryCodePattern.test(rawCountryCode)
+      ? rawCountryCode
+      : null;
+
+  let countryName =
+    typeof body.country_name === "string"
+      ? body.country_name.trim()
+      : "";
+
+  if (countryCode && !countryName) {
+    countryName = getCountryName(countryCode) ?? "";
+  }
+
   if (
     !name ||
     name.length > 200 ||
     !emailPattern.test(email) ||
     email.length > 320 ||
     !company ||
-    company.length > 200
+    company.length > 200 ||
+    countryName.length > 120
   ) {
     return null;
   }
@@ -80,41 +113,9 @@ function parseInput(value: unknown): LeadInput | null {
       typeof body.source === "string"
         ? body.source.trim() || null
         : null,
-  };
-}
 
-function getCountryFromRequest(
-  request: Request,
-): {
-  countryCode: string | null;
-  countryName: string | null;
-} {
-  const rawCountry =
-    request.headers.get("x-vercel-ip-country")?.trim().toUpperCase() ?? "";
-
-  if (!/^[A-Z]{2}$/.test(rawCountry)) {
-    return {
-      countryCode: null,
-      countryName: null,
-    };
-  }
-
-  let countryName: string | null = null;
-
-  try {
-    const displayNames = new Intl.DisplayNames(["en"], {
-      type: "region",
-    });
-
-    countryName =
-      displayNames.of(rawCountry) ?? null;
-  } catch {
-    countryName = null;
-  }
-
-  return {
-    countryCode: rawCountry,
-    countryName,
+    country_code: countryCode,
+    country_name: countryName || null,
   };
 }
 
@@ -135,13 +136,17 @@ export async function GET() {
       error.message === "UNAUTHENTICATED"
     ) {
       return NextResponse.json(
-        { error: "Authentication required." },
+        {
+          error: "Authentication required.",
+        },
         { status: 401 },
       );
     }
 
     return NextResponse.json(
-      { error: "Unable to load leads." },
+      {
+        error: "Unable to load leads.",
+      },
       { status: 500 },
     );
   }
@@ -156,7 +161,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Name, valid email, and company name are required.",
+          "Name, valid email, company name, and valid lead data are required.",
       },
       { status: 400 },
     );
@@ -191,19 +196,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const {
-      countryCode,
-      countryName,
-    } = getCountryFromRequest(request);
-
     const lead = await createLead(
       accessToken,
       user.id,
-      {
-        ...input,
-        country_code: countryCode,
-        country_name: countryName,
-      },
+      input,
     );
 
     return NextResponse.json(
@@ -216,7 +212,9 @@ export async function POST(request: Request) {
       error.message === "UNAUTHENTICATED"
     ) {
       return NextResponse.json(
-        { error: "Authentication required." },
+        {
+          error: "Authentication required.",
+        },
         { status: 401 },
       );
     }
@@ -227,7 +225,9 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json(
-      { error: "Unable to create lead." },
+      {
+        error: "Unable to create lead.",
+      },
       { status: 500 },
     );
   }

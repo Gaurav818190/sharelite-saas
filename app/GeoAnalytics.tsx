@@ -21,24 +21,38 @@ type GeoResponse = { countries?: CountryStats[]; topCountries?: TopCountry[] };
 
 const WORLD_MAP_URL = "/world.json";
 
-const FLAG_BY_COUNTRY: Record<string, string> = {
-  IN: "🇮🇳", US: "🇺🇸", GB: "🇬🇧", CA: "🇨🇦", AU: "🇦🇺", DE: "🇩🇪",
-  FR: "🇫🇷", AE: "🇦🇪", SG: "🇸🇬", JP: "🇯🇵", CN: "🇨🇳", BR: "🇧🇷",
-  ES: "🇪🇸", IT: "🇮🇹", NL: "🇳🇱", ZA: "🇿🇦", NZ: "🇳🇿", RU: "🇷🇺",
-  MX: "🇲🇽", SA: "🇸🇦", SE: "🇸🇪", NO: "🇳🇴", DK: "🇩🇰", CH: "🇨🇭",
-  BE: "🇧🇪", IE: "🇮🇪", PT: "🇵🇹", PL: "🇵🇱", AT: "🇦🇹", KR: "🇰🇷",
-};
-
 const getFlag = (code: string) => {
   const normalized = code.trim().toUpperCase();
-  if (FLAG_BY_COUNTRY[normalized]) return FLAG_BY_COUNTRY[normalized];
-  if (/^[A-Z]{2}$/.test(normalized)) {
-    return String.fromCodePoint(
-      ...normalized.split("").map((letter) => 127397 + letter.charCodeAt(0)),
-    );
+
+  if (!/^[A-Z]{2}$/.test(normalized)) {
+    return "🌐";
   }
-  return "🌐";
+
+  return String.fromCodePoint(
+    ...normalized
+      .split("")
+      .map((letter) => 127397 + letter.charCodeAt(0)),
+  );
 };
+
+const WavingFlag = ({
+  code,
+  className = "",
+}: {
+  code: string;
+  className?: string;
+}) => (
+  <span
+    className={`sharelite-waving-flag inline-block origin-left ${className}`}
+    role="img"
+    aria-label={`${getCountryDisplayName(code)} flag`}
+  >
+    {getFlag(code)}
+  </span>
+);
+
+const wavingFlagMarkup = (code: string) =>
+  `<span class="sharelite-waving-flag" aria-hidden="true">${getFlag(code)}</span>`;
 
 const COUNTRY_CODE_BY_NAME: Record<string, string> = {
   "aruba": "AW",
@@ -364,6 +378,23 @@ const getCountryCodeFromName = (name: string) => {
   return COUNTRY_CODE_BY_NAME[normalized] ?? COUNTRY_NAME_ALIASES[normalized] ?? null;
 };
 const getMetricValue = (country: CountryStats, metric: GeoMetric) => country[metric];
+
+const getCountryDisplayName = (code: string, name?: string | null) => {
+  const normalizedCode = code.trim().toUpperCase();
+  const cleanedName = typeof name === "string" ? name.trim() : "";
+
+  // Never show an ISO country code as the user-facing country name.
+  if (cleanedName && !/^[A-Z]{2}$/.test(cleanedName.toUpperCase())) {
+    return cleanedName;
+  }
+
+  try {
+    const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
+    return displayNames.of(normalizedCode) ?? (cleanedName || normalizedCode);
+  } catch {
+    return cleanedName || normalizedCode;
+  }
+};
 const getMetricLabel = (metric: GeoMetric) =>
   metric === "valid" ? "Valid Leads" : metric === "contacted" ? "Contacted" : metric === "converted" ? "Converted" : "Leads";
 
@@ -422,8 +453,20 @@ export default function GeoAnalytics() {
     return () => { cancelled = true; };
   }, [range, metric, customFrom, customTo]);
 
-  const countries = data?.countries ?? [];
-  const topCountries = data?.topCountries ?? [];
+  const countries = useMemo(
+    () => (data?.countries ?? []).map((country) => ({
+      ...country,
+      name: getCountryDisplayName(country.code, country.name),
+    })),
+    [data],
+  );
+  const topCountries = useMemo(
+    () => (data?.topCountries ?? []).map((country) => ({
+      ...country,
+      name: getCountryDisplayName(country.code, country.name),
+    })),
+    [data],
+  );
   const filteredCountries = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return topCountries;
@@ -431,7 +474,11 @@ export default function GeoAnalytics() {
       .filter(c => c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query))
       .sort((a, b) => getMetricValue(b, metric) - getMetricValue(a, metric))
       .slice(0, 10)
-      .map((country, index) => ({ ...country, rank: index + 1 }));
+      .map((country, index) => ({
+        ...country,
+        name: getCountryDisplayName(country.code, country.name),
+        rank: index + 1,
+      }));
   }, [countries, metric, search, topCountries]);
 
   const mapData = useMemo(() => countries.map(country => ({
@@ -459,14 +506,14 @@ export default function GeoAnalytics() {
       extraCssText: "box-shadow:0 12px 30px rgba(15,32,61,.25);border-radius:10px;",
       formatter: (params: any) => {
         const country = params?.data;
-        const countryName = String(params?.name ?? country?.name ?? "");
-        const countryCode = country?.countryCode ?? getCountryCodeFromName(countryName);
+        const countryCode = country?.countryCode ?? getCountryCodeFromName(String(params?.name ?? country?.name ?? ""));
+        const countryName = getCountryDisplayName(countryCode ?? "", String(params?.name ?? country?.name ?? ""));
 
         if (!country) {
-          return `<div style="min-width:165px"><div style="font-size:13px;font-weight:800">${getFlag(countryCode ?? "")} ${countryName}</div></div>`;
+          return `<div style="min-width:165px"><div style="font-size:13px;font-weight:800">${wavingFlagMarkup(countryCode ?? "")} ${countryName}</div></div>`;
         }
 
-        return `<div style="min-width:165px"><div style="font-size:13px;font-weight:800;margin-bottom:8px">${getFlag(countryCode ?? "")} ${countryName}</div><div style="margin:5px 0">Leads: <b>${country.leads ?? 0}</b></div><div style="margin:5px 0">Valid Leads: <b>${country.valid ?? 0}</b></div><div style="margin:5px 0">Contacted: <b>${country.contacted ?? 0}</b></div><div style="margin:5px 0">Converted: <b>${country.converted ?? 0}</b></div></div>`;
+        return `<div style="min-width:165px"><div style="font-size:13px;font-weight:800;margin-bottom:8px">${wavingFlagMarkup(countryCode ?? "")} ${countryName}</div><div style="margin:5px 0">Leads: <b>${country.leads ?? 0}</b></div><div style="margin:5px 0">Valid Leads: <b>${country.valid ?? 0}</b></div><div style="margin:5px 0">Contacted: <b>${country.contacted ?? 0}</b></div><div style="margin:5px 0">Converted: <b>${country.converted ?? 0}</b></div></div>`;
       },
     },
     visualMap: {
@@ -524,8 +571,8 @@ export default function GeoAnalytics() {
 
   const downloadReport = () => {
     if (!countries.length) return;
-    const header = "Country,Code,Leads,Valid Leads,Contacted,Converted";
-    const rows = countries.map(c => [c.name, c.code, c.leads, c.valid, c.contacted, c.converted].map(v => `"${String(v).replaceAll('"', '""')}"`).join(","));
+    const header = "Country,Leads,Valid Leads,Contacted,Converted";
+    const rows = countries.map(c => [getCountryDisplayName(c.code, c.name), c.leads, c.valid, c.contacted, c.converted].map(v => `"${String(v).replaceAll('"', '""')}"`).join(","));
     const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -539,6 +586,35 @@ export default function GeoAnalytics() {
 
   return (
     <div className="space-y-4">
+      <style jsx>{`
+        .sharelite-waving-flag {
+          display: inline-block;
+          transform-origin: left center;
+          animation: sharelite-flag-wave 1.8s ease-in-out infinite;
+          will-change: transform;
+          filter: drop-shadow(0 2px 2px rgba(15, 32, 61, 0.12));
+        }
+
+        @keyframes sharelite-flag-wave {
+          0%,
+          100% {
+            transform: perspective(80px) rotateY(0deg) skewY(0deg);
+          }
+          25% {
+            transform: perspective(80px) rotateY(-10deg) skewY(1deg);
+          }
+          50% {
+            transform: perspective(80px) rotateY(0deg) skewY(-1deg);
+          }
+          75% {
+            transform: perspective(80px) rotateY(10deg) skewY(1deg);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .sharelite-waving-flag { animation: none; }
+        }
+      `}</style>
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#DCE5F0] bg-transparent text-xl text-[#10213D]">🌐</div>
@@ -609,13 +685,13 @@ mouseout: () => {
             <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A9AB2]">⌕</span><input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search country..." className="w-full rounded-lg border border-[#DCE5F0] bg-white py-2.5 pl-9 pr-3 text-[11px] outline-none focus:border-blue-500" /></div>
             <div className="mt-3">
               <div className="grid grid-cols-[30px_minmax(0,1fr)_70px] gap-2 border-b border-[#E7EDF5] px-2 py-2.5 text-[9px] font-black uppercase tracking-[0.08em] text-[#71819B]"><span>#</span><span>Country</span><span className="text-right">Leads</span></div>
-              {filteredCountries.length === 0 ? <div className="px-3 py-14 text-center"><div className="text-[11px] font-bold text-[#64748B]">No geo data yet</div><div className="mt-1 text-[9px] text-[#94A3B8]">Country activity will appear when leads contain country data.</div></div> : <div className="max-h-[430px] overflow-y-auto">{filteredCountries.map(country => <button key={country.code} type="button" onClick={() => focusCountry(country.code)} className={`grid w-full grid-cols-[30px_minmax(0,1fr)_70px] items-center gap-2 border-b border-[#EEF2F7] px-2 py-3 text-left transition ${selectedCountry === country.code ? "bg-blue-50" : "hover:bg-[#F7FAFE]"}`}><span className="text-[10px] font-bold text-[#64748B]">{country.rank}</span><span className="flex min-w-0 items-center gap-2"><span className="text-[17px]">{getFlag(country.code)}</span><span className="truncate text-[11px] font-semibold text-[#10213D]">{country.name}</span></span><span className="text-right text-[11px] font-black text-[#10213D]">{country.leads}</span></button>)}</div>}
+              {filteredCountries.length === 0 ? <div className="px-3 py-14 text-center"><div className="text-[11px] font-bold text-[#64748B]">No geo data yet</div><div className="mt-1 text-[9px] text-[#94A3B8]">Country activity will appear when leads contain country data.</div></div> : <div className="max-h-[430px] overflow-y-auto">{filteredCountries.map(country => <button key={country.code} type="button" onClick={() => focusCountry(country.code)} className={`grid w-full grid-cols-[30px_minmax(0,1fr)_70px] items-center gap-2 border-b border-[#EEF2F7] px-2 py-3 text-left transition ${selectedCountry === country.code ? "bg-blue-50" : "hover:bg-[#F7FAFE]"}`}><span className="text-[10px] font-bold text-[#64748B]">{country.rank}</span><span className="flex min-w-0 items-center gap-2"><WavingFlag code={country.code} className="text-[17px]" /><span className="truncate text-[11px] font-semibold text-[#10213D]">{country.name}</span></span><span className="text-right text-[11px] font-black text-[#10213D]">{country.leads}</span></button>)}</div>}
             </div>
           </div>
         </div>
       </div>
 
-      {selectedCountryData && <div className="rounded-xl border border-[#DCE5F0] bg-white p-5"><div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#DCE5F0] bg-[#F5F9FF] text-2xl">{getFlag(selectedCountryData.code)}</div><div><div className="text-[15px] font-black text-[#10213D]">{selectedCountryData.name}</div><div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-[#7A8AA3]">Selected Country</div></div></div><div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">{[["Leads", selectedCountryData.leads, "text-blue-600"], ["Valid Leads", selectedCountryData.valid, "text-emerald-600"], ["Contacted", selectedCountryData.contacted, "text-violet-600"], ["Converted", selectedCountryData.converted, "text-orange-500"]].map(([label, value, color]) => <div key={String(label)} className="rounded-lg border border-[#DCE5F0] bg-white p-3"><div className={`text-[9px] font-black uppercase tracking-[0.08em] ${color}`}>{label}</div><div className="mt-1 text-[22px] font-black text-[#10213D]">{value}</div></div>)}</div></div>}
+      {selectedCountryData && <div className="rounded-xl border border-[#DCE5F0] bg-white p-5"><div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#DCE5F0] bg-[#F5F9FF] text-2xl"><WavingFlag code={selectedCountryData.code} className="text-2xl" /></div><div><div className="text-[15px] font-black text-[#10213D]">{selectedCountryData.name}</div><div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-[#7A8AA3]">Selected Country</div></div></div><div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">{[["Leads", selectedCountryData.leads, "text-blue-600"], ["Valid Leads", selectedCountryData.valid, "text-emerald-600"], ["Contacted", selectedCountryData.contacted, "text-violet-600"], ["Converted", selectedCountryData.converted, "text-orange-500"]].map(([label, value, color]) => <div key={String(label)} className="rounded-lg border border-[#DCE5F0] bg-white p-3"><div className={`text-[9px] font-black uppercase tracking-[0.08em] ${color}`}>{label}</div><div className="mt-1 text-[22px] font-black text-[#10213D]">{value}</div></div>)}</div></div>}
 
       <div className="flex justify-end"><button type="button" onClick={downloadReport} disabled={!countries.length} className="rounded-lg bg-blue-600 px-4 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">↓ &nbsp; Download Data</button></div>
     </div>

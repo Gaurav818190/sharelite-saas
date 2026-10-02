@@ -15,13 +15,28 @@ import {
 export const dynamic = "force-dynamic";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const countryCodePattern = /^[A-Z]{2}$/;
 
 type CsvRow = {
   name: string;
   email: string;
   company: string | null;
   website: string | null;
+  countryCode: string | null;
+  countryName: string | null;
 };
+
+function getCountryName(countryCode: string): string | null {
+  try {
+    const displayNames = new Intl.DisplayNames(["en"], {
+      type: "region",
+    });
+
+    return displayNames.of(countryCode) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function parseCsvLine(line: string): string[] {
   const values: string[] = [];
@@ -63,31 +78,63 @@ function parseCsv(csv: string): CsvRow[] {
   }
 
   const headers = parseCsvLine(lines[0]).map((header) =>
-    header.toLowerCase().trim()
+    header.toLowerCase().trim(),
   );
 
   const nameIndex = headers.indexOf("name");
   const emailIndex = headers.indexOf("email");
   const companyIndex = headers.indexOf("company");
   const websiteIndex = headers.indexOf("website");
+  const countryCodeIndex = headers.indexOf("country_code");
+  const countryNameIndex = headers.indexOf("country_name");
 
   if (nameIndex === -1 || emailIndex === -1) {
-    throw new Error("CSV must contain name and email columns.");
+    throw new Error(
+      "CSV must contain name and email columns.",
+    );
   }
 
   return lines.slice(1).map((line) => {
     const values = parseCsvLine(line);
 
+    const rawCountryCode =
+      countryCodeIndex >= 0
+        ? values[countryCodeIndex]?.trim().toUpperCase() ?? ""
+        : "";
+
+    const countryCode =
+      rawCountryCode &&
+      countryCodePattern.test(rawCountryCode)
+        ? rawCountryCode
+        : null;
+
+    const providedCountryName =
+      countryNameIndex >= 0
+        ? values[countryNameIndex]?.trim() || null
+        : null;
+
     return {
       name: values[nameIndex]?.trim() ?? "",
-      email: values[emailIndex]?.trim().toLowerCase() ?? "",
+
+      email:
+        values[emailIndex]?.trim().toLowerCase() ?? "",
+
       company:
         companyIndex >= 0
           ? values[companyIndex]?.trim() || null
           : null,
+
       website:
         websiteIndex >= 0
           ? values[websiteIndex]?.trim() || null
+          : null,
+
+      countryCode,
+
+      countryName:
+        countryCode
+          ? providedCountryName ??
+            getCountryName(countryCode)
           : null,
     };
   });
@@ -100,34 +147,46 @@ export async function POST(request: Request) {
 
     if (!(file instanceof File)) {
       return NextResponse.json(
-        { error: "Please select a CSV file." },
-        { status: 400 }
+        {
+          error: "Please select a CSV file.",
+        },
+        { status: 400 },
       );
     }
 
     if (!file.name.toLowerCase().endsWith(".csv")) {
       return NextResponse.json(
-        { error: "Only CSV files are supported." },
-        { status: 400 }
+        {
+          error: "Only CSV files are supported.",
+        },
+        { status: 400 },
       );
     }
 
     const csv = await file.text();
     const rows = parseCsv(csv);
 
-    const { user, accessToken } = await requireAuthenticatedUser();
+    const { user, accessToken } =
+      await requireAuthenticatedUser();
 
-    const [existingLeads, entitlements] = await Promise.all([
-      listLeads(accessToken),
-      getCurrentEntitlements(accessToken, user.id),
-    ]);
+    const [existingLeads, entitlements] =
+      await Promise.all([
+        listLeads(accessToken),
+        getCurrentEntitlements(
+          accessToken,
+          user.id,
+        ),
+      ]);
 
     const existingEmails = new Set(
-      existingLeads.map((lead) => lead.email.toLowerCase())
+      existingLeads.map((lead) =>
+        lead.email.toLowerCase(),
+      ),
     );
 
     const fileEmails = new Set<string>();
     const validRows: LeadInput[] = [];
+
     let invalid = 0;
     let duplicates = 0;
 
@@ -160,46 +219,69 @@ export async function POST(request: Request) {
         website: row.website,
         status: "new",
         source: "csv-import",
+        country_code: row.countryCode,
+        country_name: row.countryName,
       });
     }
 
-    const available = entitlements.limits.leads - existingLeads.length;
+    const available =
+      entitlements.limits.leads -
+      existingLeads.length;
 
     if (available <= 0) {
       return NextResponse.json(
         {
-          error: "Lead limit reached for your plan.",
+          error:
+            "Lead limit reached for your plan.",
           imported: 0,
           invalid,
           duplicates,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    const rowsToInsert = validRows.slice(0, available);
+    const rowsToInsert = validRows.slice(
+      0,
+      available,
+    );
 
-    if (!hasCapacity(entitlements.plan, "leads", existingLeads.length)) {
+    if (
+      !hasCapacity(
+        entitlements.plan,
+        "leads",
+        existingLeads.length,
+      )
+    ) {
       return NextResponse.json(
         {
-          error: "Lead limit reached for your plan.",
+          error:
+            "Lead limit reached for your plan.",
           imported: 0,
           invalid,
           duplicates,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     const inserted = rowsToInsert.length
-      ? await createLeads(accessToken, user.id, rowsToInsert)
+      ? await createLeads(
+          accessToken,
+          user.id,
+          rowsToInsert,
+        )
       : [];
 
     return NextResponse.json({
       imported: inserted.length,
       invalid,
       duplicates,
-      skippedByLimit: Math.max(0, validRows.length - rowsToInsert.length),
+      skippedByLimit: Math.max(
+        0,
+        validRows.length -
+          rowsToInsert.length,
+      ),
       leads: inserted,
     });
   } catch (error) {
@@ -208,26 +290,36 @@ export async function POST(request: Request) {
       error.message === "UNAUTHENTICATED"
     ) {
       return NextResponse.json(
-        { error: "Authentication required." },
-        { status: 401 }
+        {
+          error: "Authentication required.",
+        },
+        { status: 401 },
       );
     }
 
     if (
       error instanceof Error &&
-      error.message.startsWith("CSV must contain")
+      error.message.startsWith(
+        "CSV must contain",
+      )
     ) {
       return NextResponse.json(
         { error: error.message },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    console.error("CSV lead import failed", error);
+    console.error(
+      "CSV lead import failed",
+      error,
+    );
 
     return NextResponse.json(
-      { error: "Unable to import CSV leads." },
-      { status: 500 }
+      {
+        error:
+          "Unable to import CSV leads.",
+      },
+      { status: 500 },
     );
   }
 }

@@ -198,6 +198,8 @@ const emptyLead = {
   website: "",
   status: "new" as LeadStatus,
   source: "",
+  country_code: "",
+  country_name: "",
 };
 
 function getFirstName(user: AuthUser): string {
@@ -1288,13 +1290,15 @@ useEffect(() => {
     setEditingId(lead.id);
 
     setLeadForm({
-      name: lead.name,
-      email: lead.email,
-      company: lead.company ?? "",
-      website: lead.website ?? "",
-      status: lead.status,
-      source: lead.source ?? "",
-    });
+  name: lead.name,
+  email: lead.email,
+  company: lead.company ?? "",
+  website: lead.website ?? "",
+  status: lead.status,
+  source: lead.source ?? "",
+  country_code: lead.country_code ?? "",
+  country_name: lead.country_name ?? "",
+});
 
     setActiveTab("leads");
   }
@@ -1375,26 +1379,26 @@ useEffect(() => {
   }
 
   function downloadCsvTemplate() {
-    const csvContent =
-      "name,email,company,website\n" +
-      "John Doe,john@example.com,Example Company,https://example.com\n";
+  const csvContent =
+    "name,email,company,website,country_code,country_name\n" +
+    "John Doe,john@example.com,Example Company,https://example.com,IN,India\n";
 
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
 
-    link.href = url;
-    link.download = "sharelite-leads-template.csv";
+  link.href = url;
+  link.download = "sharelite-leads-template.csv";
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 
-    URL.revokeObjectURL(url);
-  }
+  URL.revokeObjectURL(url);
+}
 
   async function validateLead(id: string) {
   setLeadError(null);
@@ -3094,6 +3098,69 @@ async function prepareBulkCampaign() {
                     : "border-slate-200 bg-white text-slate-900"
                 }`}
               />
+
+               <select
+  value={leadForm.country_code}
+  onChange={(event) => {
+    const code = event.target.value;
+
+    const countryNames: Record<string, string> = {
+      IN: "India",
+      US: "United States",
+      GB: "United Kingdom",
+      CA: "Canada",
+      AU: "Australia",
+      DE: "Germany",
+      FR: "France",
+      AE: "United Arab Emirates",
+      SG: "Singapore",
+      JP: "Japan",
+      CN: "China",
+      BR: "Brazil",
+      ES: "Spain",
+      IT: "Italy",
+      NL: "Netherlands",
+      ZA: "South Africa",
+      NZ: "New Zealand",
+      RU: "Russia",
+      MX: "Mexico",
+      SA: "Saudi Arabia",
+    };
+
+    setLeadForm({
+      ...leadForm,
+      country_code: code,
+      country_name: countryNames[code] ?? "",
+    });
+  }}
+  className={`rounded-xl border px-3 py-3 text-sm ${
+    dark
+      ? "border-white/10 bg-slate-900 text-white"
+      : "border-slate-200 bg-white text-slate-900"
+  }`}
+>
+  <option value="">Country</option>
+  <option value="IN">🇮🇳 India</option>
+  <option value="US">🇺🇸 United States</option>
+  <option value="GB">🇬🇧 United Kingdom</option>
+  <option value="CA">🇨🇦 Canada</option>
+  <option value="AU">🇦🇺 Australia</option>
+  <option value="DE">🇩🇪 Germany</option>
+  <option value="FR">🇫🇷 France</option>
+  <option value="AE">🇦🇪 United Arab Emirates</option>
+  <option value="SG">🇸🇬 Singapore</option>
+  <option value="JP">🇯🇵 Japan</option>
+  <option value="CN">🇨🇳 China</option>
+  <option value="BR">🇧🇷 Brazil</option>
+  <option value="ES">🇪🇸 Spain</option>
+  <option value="IT">🇮🇹 Italy</option>
+  <option value="NL">🇳🇱 Netherlands</option>
+  <option value="ZA">🇿🇦 South Africa</option>
+  <option value="NZ">🇳🇿 New Zealand</option>
+  <option value="RU">🇷🇺 Russia</option>
+  <option value="MX">🇲🇽 Mexico</option>
+  <option value="SA">🇸🇦 Saudi Arabia</option>
+</select>
 
               <input
                 placeholder="Website"
