@@ -12,7 +12,6 @@ import {
 
 import type { AuthUser } from "@/lib/supabase-auth";
 
-
 import type {
   Lead,
   LeadCounts,
@@ -45,6 +44,12 @@ type DashboardClientProps = {
 
 type AnalyticsRange = "7d" | "30d" | "3m";
 
+type PerformancePoint = {
+  date: string;
+  leads: number;
+  campaigns: number;
+};
+
 type DeliveryLifecycle = {
   pending: number;
   sending: number;
@@ -67,6 +72,13 @@ type DashboardDelivery = {
   bounced_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+type DashboardGraphPoint = {
+  date: string;
+  sent: number;
+  delivered: number;
+  failed: number;
 };
 
 function DashboardIcon({
@@ -148,18 +160,6 @@ function DashboardIcon({
     );
   }
 
-    if (name === "geo") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M3.5 12h17" />
-        <path d="M12 3.5c2.2 2.3 3.4 5.1 3.4 8.5s-1.2 6.2-3.4 8.5c-2.2-2.3-3.4-5.1-3.4-8.5s1.2-6.2 3.4-8.5Z" />
-        <path d="M5.5 7.5c1.9 1 4.1 1.5 6.5 1.5s4.6-.5 6.5-1.5" />
-        <path d="M5.5 16.5c1.9-1 4.1-1.5 6.5-1.5s4.6.5 6.5 1.5" />
-      </svg>
-    );
-  }
-
   if (name === "settings") {
     return (
       <svg {...common}>
@@ -195,11 +195,11 @@ const emptyLead = {
   name: "",
   email: "",
   company: "",
+  country_code: "",
+  country_name: "",
   website: "",
   status: "new" as LeadStatus,
   source: "",
-  country_code: "",
-  country_name: "",
 };
 
 function getFirstName(user: AuthUser): string {
@@ -244,7 +244,7 @@ export default function DashboardClient({
   initialCounts,
   dataError,
 }: DashboardClientProps) {
-  const dark = false;
+  const [dark, setDark] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
 
      const [leads, setLeads] = useState<Lead[]>(initialLeads);
@@ -320,11 +320,14 @@ const [bulkOutreachMessage, setBulkOutreachMessage] = useState<
 const [bulkOutreachError, setBulkOutreachError] = useState<string | null>(
   null
 );
-const [prepagrayDeliveryIds, setPrepagrayDeliveryIds] = useState<string[]>([]);
+const [preparedDeliveryIds, setPreparedDeliveryIds] = useState<string[]>([]);
 const [sendDeliveryLoading, setSendDeliveryLoading] = useState(false);
   const [analyticsRange, setAnalyticsRange] =
     useState<AnalyticsRange>("7d");
 
+  const [performance, setPerformance] = useState<PerformancePoint[]>(
+    []
+  );
   const [deliveryLifecycle, setDeliveryLifecycle] =
   useState<DeliveryLifecycle>({
     pending: 0,
@@ -361,44 +364,21 @@ const [sendDeliveryLoading, setSendDeliveryLoading] = useState(false);
   );
 
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const [geoUpgradeOpen, setGeoUpgradeOpen] = useState(false);
   const [profileFirstName, setProfileFirstName] = useState("");
   
   const firstName =
   profileFirstName.trim() || getFirstName(user);
 
-    const navGroups = [
-    {
-      title: "WORKSPACE",
-      items: [
-        { id: "dashboard", label: "Dashboard", icon: "dashboard" },
-        { id: "leads", label: "Leads", icon: "leads" },
-        { id: "campaigns", label: "Campaigns", icon: "campaigns" },
-        { id: "messages", label: "Messages", icon: "messages" },
-        { id: "approvals", label: "Approvals", icon: "approvals" },
-        { id: "analytics", label: "Analytics", icon: "analytics" },
-        { id: "geo-analytics", label: "Geo Analytics", icon: "geo" },
-      ],
-    },
-    {
-      title: "MANAGE",
-      items: [
-        { id: "templates", label: "Templates", icon: "templates" },
-        {
-          id: "inboxes",
-          label: "Connected Inboxes",
-          icon: "inboxes",
-        },
-        { id: "reviews", label: "Reviews", icon: "reviews" },
-      ],
-    },
-    {
-      title: "ACCOUNT",
-      items: [
-        { id: "billing", label: "Billing", icon: "billing" },
-        { id: "settings", label: "Settings", icon: "settings" },
-      ],
-    },
+  const navItems = [
+    { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+    { id: "leads", label: "Leads", icon: "leads" },
+    { id: "campaigns", label: "Campaigns", icon: "campaigns" },
+    { id: "messages", label: "Messages", icon: "messages" },
+    { id: "approvals", label: "Approvals", icon: "approvals" },
+    { id: "analytics", label: "Analytics", icon: "analytics" },
+    { id: "geo-analytics", label: "Geo Analytics", icon: "analytics" },
+    { id: "settings", label: "Settings", icon: "settings" },
+    { id: "billing", label: "Billing", icon: "billing" },
   ];
 
   function formatStatChange(value: number | null): string {
@@ -462,6 +442,125 @@ const [sendDeliveryLoading, setSendDeliveryLoading] = useState(false);
     },
   ];
   const leadRows = useMemo(() => leads, [leads]);
+
+  const graphPoints = useMemo(() => {
+    if (performance.length <= 8) {
+      return performance;
+    }
+
+    const bucketSize = Math.ceil(performance.length / 8);
+
+    return Array.from(
+      { length: Math.ceil(performance.length / bucketSize) },
+      (_, index) =>
+        performance
+          .slice(index * bucketSize, (index + 1) * bucketSize)
+          .reduce(
+            (total, point) => ({
+              date: point.date,
+              leads: total.leads + point.leads,
+              campaigns: total.campaigns + point.campaigns,
+            }),
+            {
+              date: performance[index * bucketSize]?.date ?? "",
+              leads: 0,
+              campaigns: 0,
+            }
+          )
+    );
+  }, [performance]);
+
+  const graphMax = Math.max(
+    1,
+    ...graphPoints.map((point) => point.leads + point.campaigns)
+  );
+
+  const hasPerformanceData = graphPoints.some(
+    (point) => point.leads > 0 || point.campaigns > 0
+  );
+
+  const dashboardGraphPoints = useMemo<DashboardGraphPoint[]>(() => {
+    const rangeDays =
+      analyticsRange === "7d"
+        ? 7
+        : analyticsRange === "30d"
+        ? 30
+        : 90;
+
+    const today = new Date();
+    const start = new Date(today);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (rangeDays - 1));
+
+    const points = Array.from({ length: rangeDays }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      return {
+        date,
+        sent: 0,
+        delivered: 0,
+        failed: 0,
+      };
+    });
+
+    for (const delivery of dashboardDeliveries) {
+      const sourceDate =
+        delivery.sent_at ??
+        delivery.created_at ??
+        delivery.updated_at ??
+        null;
+
+      if (!sourceDate) {
+        continue;
+      }
+
+      const date = new Date(sourceDate);
+      if (!Number.isFinite(date.getTime())) {
+        continue;
+      }
+
+      date.setHours(0, 0, 0, 0);
+      const index = Math.floor(
+        (date.getTime() - start.getTime()) / 86400000
+      );
+
+      if (index < 0 || index >= points.length) {
+        continue;
+      }
+
+      const status = String(delivery.status ?? "").toLowerCase();
+      const wasSent = Boolean(
+        delivery.sent_at ||
+          ["sending", "accepted", "delivered", "bounced", "failed"].includes(status)
+      );
+
+      if (wasSent) {
+        points[index].sent += 1;
+      }
+
+      if (status === "delivered" || delivery.delivered_at) {
+        points[index].delivered += 1;
+      }
+
+      if (status === "failed" || status === "bounced" || delivery.bounced_at) {
+        points[index].failed += 1;
+      }
+    }
+
+    return points.map((point) => ({
+      date: point.date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+      }),
+      sent: point.sent,
+      delivered: point.delivered,
+      failed: point.failed,
+    }));
+  }, [analyticsRange, dashboardDeliveries]);
+
+  const dashboardGraphHasData = dashboardGraphPoints.some(
+    (point) => point.sent > 0 || point.delivered > 0 || point.failed > 0
+  );
 
   const invalidLeadCount = leads.filter(
     (lead) => lead.validation_status === "invalid"
@@ -690,6 +789,21 @@ setCounts({
         void loadDashboardCampaignData();
       }
 
+      if (analyticsResponse.ok) {
+        setChanges({
+          total: analyticsBody?.changes?.total?.percentage ?? null,
+          valid: analyticsBody?.changes?.valid?.percentage ?? null,
+          contacted: analyticsBody?.changes?.contacted?.percentage ?? null,
+          converted: analyticsBody?.changes?.converted?.percentage ?? null,
+        });
+      }
+
+      if (
+        analyticsResponse.ok &&
+        Array.isArray(analyticsBody?.performance)
+      ) {
+        setPerformance(analyticsBody.performance);
+      }
 if (
   analyticsResponse.ok &&
   analyticsBody?.deliveryLifecycle
@@ -867,6 +981,13 @@ if (isPermanentFree) {
         .json()
         .catch(() => null);
 
+      if (
+        !cancelled &&
+        analyticsResponse.ok &&
+        Array.isArray(analyticsBody?.performance)
+      ) {
+        setPerformance(analyticsBody.performance);
+      }
  
 if (
   !cancelled &&
@@ -1115,7 +1236,7 @@ useEffect(() => {
 
   let cancelled = false;
 
-  async function loadPrepagrayDeliveries() {
+  async function loadPreparedDeliveries() {
     try {
       const response = await fetch(
         `/api/campaigns/${encodeURIComponent(
@@ -1150,7 +1271,7 @@ useEffect(() => {
             delivery?.status === "pending",
         );
 
-      setPrepagrayDeliveryIds(
+      setPreparedDeliveryIds(
         pendingDeliveries
           .map(
             (delivery: {
@@ -1207,7 +1328,7 @@ useEffect(() => {
     }
   }
 
-  void loadPrepagrayDeliveries();
+  void loadPreparedDeliveries();
 
   return () => {
     cancelled = true;
@@ -1290,15 +1411,15 @@ useEffect(() => {
     setEditingId(lead.id);
 
     setLeadForm({
-  name: lead.name,
-  email: lead.email,
-  company: lead.company ?? "",
-  website: lead.website ?? "",
-  status: lead.status,
-  source: lead.source ?? "",
-  country_code: lead.country_code ?? "",
-  country_name: lead.country_name ?? "",
-});
+      name: lead.name,
+      email: lead.email,
+      company: lead.company ?? "",
+      country_code: lead.country_code ?? "",
+      country_name: lead.country_name ?? "",
+      website: lead.website ?? "",
+      status: lead.status,
+      source: lead.source ?? "",
+    });
 
     setActiveTab("leads");
   }
@@ -1379,26 +1500,26 @@ useEffect(() => {
   }
 
   function downloadCsvTemplate() {
-  const csvContent =
-    "name,email,company,website,country_code,country_name\n" +
-    "John Doe,john@example.com,Example Company,https://example.com,IN,India\n";
+    const csvContent =
+      "name,email,company,website,country_code,country_name\n" +
+      "John Doe,john@example.com,Example Company,https://example.com,IN,India\n";
 
-  const blob = new Blob([csvContent], {
-    type: "text/csv;charset=utf-8;",
-  });
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
 
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
 
-  link.href = url;
-  link.download = "sharelite-leads-template.csv";
+    link.href = url;
+    link.download = "sharelite-leads-template.csv";
 
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-  URL.revokeObjectURL(url);
-}
+    URL.revokeObjectURL(url);
+  }
 
   async function validateLead(id: string) {
   setLeadError(null);
@@ -1697,13 +1818,13 @@ async function prepareBulkCampaign() {
       );
     }
 
-    const prepagrayDeliveries =
-      Array.isArray(body?.prepagrayDeliveries)
-        ? body.prepagrayDeliveries
+    const preparedDeliveries =
+      Array.isArray(body?.preparedDeliveries)
+        ? body.preparedDeliveries
         : [];
 
-    setPrepagrayDeliveryIds(
-      prepagrayDeliveries
+    setPreparedDeliveryIds(
+      preparedDeliveries
         .map(
           (delivery: { id?: string }) =>
             typeof delivery?.id === "string"
@@ -1717,8 +1838,8 @@ async function prepareBulkCampaign() {
     );
 
     setBulkOutreachMessage(
-      `Campaign prepagray: ${
-        prepagrayDeliveries.length
+      `Campaign prepared: ${
+        preparedDeliveries.length
       } delivery(s) ready.`,
     );
 
@@ -1733,7 +1854,7 @@ async function prepareBulkCampaign() {
     setBulkOutreachLoading(false);
   }
 }
- async function sendPrepagrayDelivery() {
+ async function sendPreparedDelivery() {
   setBulkOutreachError(null);
   setBulkOutreachMessage(null);
 
@@ -1751,9 +1872,9 @@ async function prepareBulkCampaign() {
     return;
   }
 
-  if (prepagrayDeliveryIds.length === 0) {
+  if (preparedDeliveryIds.length === 0) {
     setBulkOutreachError(
-      "No prepagray deliveries are available.",
+      "No prepared deliveries are available.",
     );
     return;
   }
@@ -1777,7 +1898,7 @@ async function prepareBulkCampaign() {
     if (!deliveriesResponse.ok) {
       throw new Error(
         deliveriesBody?.error ??
-          "Unable to load prepagray deliveries.",
+          "Unable to load prepared deliveries.",
       );
     }
 
@@ -1787,7 +1908,7 @@ async function prepareBulkCampaign() {
       ? deliveriesBody.deliveries
       : [];
 
-    const prepagrayIds = [...prepagrayDeliveryIds];
+    const preparedIds = [...preparedDeliveryIds];
 
     let queuedCount = 0;
     let failedCount = 0;
@@ -1798,10 +1919,10 @@ async function prepareBulkCampaign() {
 
     for (
       let start = 0;
-      start < prepagrayIds.length;
+      start < preparedIds.length;
       start += batchSize
     ) {
-      const batch = prepagrayIds.slice(
+      const batch = preparedIds.slice(
         start,
         start + batchSize,
       );
@@ -1809,19 +1930,19 @@ async function prepareBulkCampaign() {
       const results = await Promise.all(
         batch.map(async (deliveryId) => {
           try {
-            const prepagrayDelivery = deliveries.find(
+            const preparedDelivery = deliveries.find(
               (delivery: {
                 id?: string;
               }) => delivery?.id === deliveryId,
             );
 
-            if (!prepagrayDelivery?.lead_id) {
+            if (!preparedDelivery?.lead_id) {
               throw new Error(
-                "Unable to determine the lead for this prepagray delivery.",
+                "Unable to determine the lead for this prepared delivery.",
               );
             }
 
-            const leadId = prepagrayDelivery.lead_id;
+            const leadId = preparedDelivery.lead_id;
 
             const aiSubject =
               typeof aiSubjects[leadId] === "string"
@@ -1901,10 +2022,10 @@ async function prepareBulkCampaign() {
     }
 
     if (queuedCount > 0) {
-      setPrepagrayDeliveryIds((current) =>
+      setPreparedDeliveryIds((current) =>
         current.filter(
           (id) =>
-            !prepagrayIds.includes(id),
+            !preparedIds.includes(id),
         ),
       );
     }
@@ -1939,569 +2060,766 @@ async function prepareBulkCampaign() {
   }
 }
   
- return (
-  <main
-    className={`sharelite-shell sharelite-compact min-h-screen md:flex ${
-      dark
-        ? "bg-black text-slate-100"
-        : "bg-[#f5f7fb] text-slate-900"
-    }`}
-  >
-    <style>{`
-      .sharelite-compact [class*="text-[18px]"] {
-        font-size: 0.92rem !important;
-        line-height: 1.15rem !important;
-      }
-
-      .sharelite-compact [class*="text-[20px]"] {
-        font-size: 1rem !important;
-        line-height: 1.2rem !important;
-      }
-
-      .sharelite-compact [class*="text-[15px]"] {
-        font-size: 0.78rem !important;
-        line-height: 1rem !important;
-      }
-
-      .sharelite-compact [class*="text-[14px]"] {
-        font-size: 0.72rem !important;
-        line-height: 0.95rem !important;
-      }
-
-      .sharelite-compact [class*="text-[13px]"] {
-        font-size: 0.68rem !important;
-        line-height: 0.9rem !important;
-      }
-
-      .sharelite-compact [class*="text-[12px]"] {
-        font-size: 0.65rem !important;
-        line-height: 0.85rem !important;
-      }
-
-      .sharelite-compact [class*="text-[11px]"] {
-        font-size: 0.6rem !important;
-        line-height: 0.8rem !important;
-      }
-
-      .sharelite-compact [class*="text-[10px]"] {
-        font-size: 0.56rem !important;
-        line-height: 0.75rem !important;
-      }
-
-      .sharelite-compact .text-sm {
-        font-size: 0.7rem !important;
-        line-height: 0.95rem !important;
-      }
-
-      .sharelite-compact .text-xs {
-        font-size: 0.64rem !important;
-        line-height: 0.85rem !important;
-      }
-
-      .sharelite-compact .text-2xl {
-        font-size: 1.25rem !important;
-        line-height: 1.45rem !important;
-      }
-
-      .sharelite-compact .text-3xl {
-        font-size: 1.5rem !important;
-        line-height: 1.7rem !important;
-      }
-
-      .sharelite-compact .p-6 {
-        padding: 0.9rem !important;
-      }
-
-      .sharelite-compact .p-5 {
-        padding: 0.8rem !important;
-      }
-
-      .sharelite-compact .p-4 {
-        padding: 0.7rem !important;
-      }
-
-      .sharelite-compact .p-3 {
-        padding: 0.55rem !important;
-      }
-
-      .sharelite-compact .px-5 {
-        padding-left: 0.75rem !important;
-        padding-right: 0.75rem !important;
-      }
-
-      .sharelite-compact .px-4 {
-        padding-left: 0.65rem !important;
-        padding-right: 0.65rem !important;
-      }
-
-      .sharelite-compact .px-3 {
-        padding-left: 0.55rem !important;
-        padding-right: 0.55rem !important;
-      }
-
-      .sharelite-compact .py-4 {
-        padding-top: 0.65rem !important;
-        padding-bottom: 0.65rem !important;
-      }
-
-      .sharelite-compact .py-3 {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
-      }
-
-      .sharelite-compact .py-2 {
-        padding-top: 0.4rem !important;
-        padding-bottom: 0.4rem !important;
-      }
-
-      .sharelite-compact .gap-5 {
-        gap: 0.65rem !important;
-      }
-
-      .sharelite-compact .gap-4 {
-        gap: 0.55rem !important;
-      }
-
-      .sharelite-compact .gap-3 {
-        gap: 0.45rem !important;
-      }
-
-      .sharelite-compact .gap-2 {
-        gap: 0.35rem !important;
-      }
-
-      .sharelite-compact .space-y-8 > :not([hidden]) ~ :not([hidden]) {
-        margin-top: 0.7rem !important;
-      }
-
-      .sharelite-compact .space-y-6 > :not([hidden]) ~ :not([hidden]) {
-        margin-top: 0.6rem !important;
-      }
-
-      .sharelite-compact input,
-      .sharelite-compact select,
-      .sharelite-compact textarea {
-        font-size: 0.7rem !important;
-      }
-
-      .sharelite-compact button,
-      .sharelite-compact a {
-        -webkit-tap-highlight-color: transparent;
-      }
-    `}</style>
-
-    <aside
-      className={`${
-        activeTab === "inbox"
-          ? "hidden"
-          : "relative z-30 hidden w-[242px] shrink-0 md:sticky md:top-0 md:flex md:h-screen md:flex-col"
-      } bg-white`}
-    >
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-3.5 pt-4">
-        <div className="flex items-center justify-between gap-2 px-1">
-          <div className="flex items-center gap-2">
-            <div
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[14px] font-black ${
-                dark
-                  ? "border-gray-400/25 bg-gray-400/[0.08] text-gray-300"
-                  : "border-gray-500/25 bg-gray-50 text-gray-700"
-              }`}
-              aria-hidden="true"
-            >
-              S
-            </div>
-
-            <div>
-              <div className="text-[16px] font-black tracking-[-0.04em]">
-                ShareLite
-              </div>
-
-              <div className="text-[9px] font-medium text-slate-500">
-                Outreach Engine
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setLogoutOpen(true)}
-            className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition ${
-              dark
-                ? "border-white/[0.10] bg-white/[0.02] text-slate-400 hover:bg-white/[0.06] hover:text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            Logout
-          </button>
-        </div>
-
-        <nav
-          className="mt-5 space-y-5"
-          aria-label="Workspace navigation"
-        >
-          {navGroups.map((group) => (
-            <div key={group.title}>
-              <div className="mb-2 px-3 text-[9px] font-black tracking-[0.16em] text-slate-400">
-                {group.title}
-              </div>
-
-              <div className="space-y-1">
-                {group.items.map((item) => {
-  const mappedTab =
-    item.id === "messages"
-      ? "inbox"
-      : item.id === "approvals"
-        ? "reviews"
-        : item.id;
-
-  const isBilling = item.id === "billing";
-  const isGeoAnalytics = item.id === "geo-analytics";
-
-  const isGeoLocked = false;
-
-  const isActive =
-    !isBilling &&
-    !isGeoLocked &&
-    activeTab === mappedTab;
-
-  if (isBilling) {
-    return (
-      <Link
-        key={item.id}
-        href="/plans"
-        className="group flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2.5 text-left text-[12px] font-semibold text-slate-700 transition-all duration-200 hover:scale-[1.02] hover:bg-slate-100 hover:text-black"
-      >
-        <span className="w-5 shrink-0 text-slate-500 transition-colors group-hover:text-black">
-          <DashboardIcon name={item.icon} />
-        </span>
-
-        <span className="min-w-0 flex-1">
-          {item.label}
-        </span>
-      </Link>
-    );
-  }
-
   return (
-    <button
-      key={item.id}
-      type="button"
-      onClick={() => {
-        if (isGeoLocked) {
-          setGeoUpgradeOpen(true);
-          return;
-        }
-
-        setActiveTab(mappedTab);
-      }}
-      className={`group flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-[12px] font-semibold transition-all duration-200 ${
-        isActive
-          ? "scale-[1.02] border-blue-600 bg-blue-600 text-white"
-          : isGeoLocked
-            ? "border-transparent text-slate-400 hover:bg-slate-50 hover:text-slate-500"
-            : "border-transparent text-slate-700 hover:scale-[1.02] hover:bg-slate-100 hover:text-black"
-      }`}
-    >
-      <span
-        className={`w-5 shrink-0 transition-colors ${
-          isActive
-            ? "text-white"
-            : isGeoLocked
-              ? "text-slate-400"
-              : "text-slate-500 group-hover:text-black"
+    <main
+  className={`sharelite-shell sharelite-compact min-h-screen md:flex ${
+    dark
+      ? "bg-black text-slate-100"
+      : "bg-[#f5f7fb] text-slate-900"
+  }`}
+>
+      <style>{`
+        .sharelite-compact [class*="text-[18px]"] { font-size: 0.92rem !important; line-height: 1.15rem !important; }
+        .sharelite-compact [class*="text-[20px]"] { font-size: 1rem !important; line-height: 1.2rem !important; }
+        .sharelite-compact [class*="text-[15px]"] { font-size: 0.78rem !important; line-height: 1rem !important; }
+        .sharelite-compact [class*="text-[14px]"] { font-size: 0.72rem !important; line-height: 0.95rem !important; }
+        .sharelite-compact [class*="text-[13px]"] { font-size: 0.68rem !important; line-height: 0.9rem !important; }
+        .sharelite-compact [class*="text-[12px]"] { font-size: 0.65rem !important; line-height: 0.85rem !important; }
+        .sharelite-compact [class*="text-[11px]"] { font-size: 0.6rem !important; line-height: 0.8rem !important; }
+        .sharelite-compact [class*="text-[10px]"] { font-size: 0.56rem !important; line-height: 0.75rem !important; }
+        .sharelite-compact .text-sm { font-size: 0.7rem !important; line-height: 0.95rem !important; }
+        .sharelite-compact .text-xs { font-size: 0.64rem !important; line-height: 0.85rem !important; }
+        .sharelite-compact .text-2xl { font-size: 1.25rem !important; line-height: 1.45rem !important; }
+        .sharelite-compact .text-3xl { font-size: 1.5rem !important; line-height: 1.7rem !important; }
+        .sharelite-compact .p-6 { padding: 0.9rem !important; }
+        .sharelite-compact .p-5 { padding: 0.8rem !important; }
+        .sharelite-compact .p-4 { padding: 0.7rem !important; }
+        .sharelite-compact .p-3 { padding: 0.55rem !important; }
+        .sharelite-compact .px-5 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+        .sharelite-compact .px-4 { padding-left: 0.65rem !important; padding-right: 0.65rem !important; }
+        .sharelite-compact .px-3 { padding-left: 0.55rem !important; padding-right: 0.55rem !important; }
+        .sharelite-compact .py-4 { padding-top: 0.65rem !important; padding-bottom: 0.65rem !important; }
+        .sharelite-compact .py-3 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+        .sharelite-compact .py-2 { padding-top: 0.4rem !important; padding-bottom: 0.4rem !important; }
+        .sharelite-compact .gap-5 { gap: 0.65rem !important; }
+        .sharelite-compact .gap-4 { gap: 0.55rem !important; }
+        .sharelite-compact .gap-3 { gap: 0.45rem !important; }
+        .sharelite-compact .gap-2 { gap: 0.35rem !important; }
+        .sharelite-compact .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.7rem !important; }
+        .sharelite-compact .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.6rem !important; }
+        .sharelite-compact input, .sharelite-compact select, .sharelite-compact textarea { font-size: 0.7rem !important; }
+        .sharelite-compact button, .sharelite-compact a { -webkit-tap-highlight-color: transparent; }
+      `}</style>
+      <aside
+        className={`${
+          activeTab === "inbox"
+            ? "hidden"
+            : "relative z-30 hidden w-[242px] shrink-0 xl:w-[242px] border-r md:sticky md:top-0 md:flex md:h-screen md:flex-col"
+        } ${
+          dark
+            ? "border-white/[0.07] bg-[#030303]"
+            : "border-slate-200 bg-white"
         }`}
       >
-        <DashboardIcon name={item.icon} />
-      </span>
-
-      <span className="min-w-0 flex-1">
-        {item.label}
-      </span>
-
-      {isGeoLocked && (
-        <span
-          className="shrink-0 text-[10px] text-slate-400"
-          aria-label="Upgrade required"
-          title="Upgrade required"
-        >
-          🔒
-        </span>
-      )}
-
-      {item.id === "approvals" &&
-        pendingApprovals.length > 0 && (
-          <span
-            className={`min-w-[20px] rounded-full px-1.5 py-0.5 text-center text-[9px] font-black ${
-              isActive
-                ? "bg-white text-blue-600"
-                : "bg-slate-200 text-slate-700"
-            }`}
-          >
-            {pendingApprovals.length}
-          </span>
-        )}
-    </button>
-  );
-})}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3.5 pt-4">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-2">
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[14px] font-black ${
+                  dark
+                    ? "border-cyan-400/25 bg-cyan-400/[0.08] text-cyan-300"
+                    : "border-cyan-500/25 bg-cyan-50 text-cyan-700"
+                }`}
+                aria-hidden="true"
+              >
+                S
               </div>
-            </div>
-          ))}
-        </nav>
-
-        <div
-          className={`mt-4 rounded-xl border p-3 ${
-            dark
-              ? "border-white/10 bg-white/[0.025]"
-              : "border-slate-200 bg-white"
-          }`}
-        >
-          <div className="flex items-center gap-2 text-[12px] font-medium">
-            <span className="text-slate-400">♛</span>
-            <span>Free Trial</span>
-          </div>
-
-          <div className="mt-1 text-[18px] font-black tracking-[-0.04em]">
-            {permanentFree ? (
-              <>
-                Permanent Free
-                <span className="ml-1 text-[10px] font-medium text-slate-400">
-                  active
-                </span>
-              </>
-            ) : (
-              <>
-                {trialCountdown}
-                <span className="ml-1 text-[10px] font-medium text-slate-400">
-                  remaining
-                </span>
-              </>
-            )}
-          </div>
-
-          <div
-            className={`mt-2 h-1.5 overflow-hidden rounded-full ${
-              dark ? "bg-white/10" : "bg-slate-200"
-            }`}
-          >
-            <div
-              className="h-full rounded-full bg-blue-600"
-              style={{
-                width: permanentFree
-                  ? "100%"
-                  : trialSeconds === null
-                    ? "0%"
-                    : `${Math.max(
-                        0,
-                        Math.min(
-                          100,
-                          (trialSeconds / (12 * 86400)) * 100,
-                        ),
-                      )}%`,
-              }}
-            />
-          </div>
-
-          <Link
-            href="/plans"
-            className="mt-2.5 block rounded-lg bg-blue-600 px-3 py-2.5 text-center text-[11px] font-black text-white transition hover:bg-blue-700"
-          >
-            Upgrade Now
-          </Link>
-        </div>
-      </div>
-    </aside>
-
-    <section className="min-w-0 flex-1">
-      <div className="mx-auto w-full max-w-[1320px] px-3 pb-10 pt-3 md:px-4 lg:px-5">
-
-
-      {activeTab === "geo-analytics" && (
-  <GeoAnalytics />
-)}
-
-      
-
-        {activeTab === "dashboard" && (
-          <>
-            <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
               <div>
-                <h1 className="text-[18px] font-black tracking-[-0.04em] md:text-[20px]">
-                  Welcome back, {firstName}!{" "}
-                  <span className="text-[18px]">👋</span>
-                </h1>
-
-                <p
-                  className={`mt-0.5 text-[12px] ${
-                    dark
-                      ? "text-slate-400"
-                      : "text-slate-500"
-                  }`}
-                >
-                  Here’s what’s happening with your outreach today.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void refreshDashboard()}
-                  disabled={refreshing}
-                  className={`hidden rounded-lg border px-3 py-2 text-[10px] font-semibold sm:flex sm:items-center sm:gap-2 ${
-                    dark
-                      ? "border-white/15 bg-white/[0.02] text-slate-200 hover:bg-white/[0.05]"
-                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  <span>{refreshing ? "↻" : "⟳"}</span>
-                  {refreshing ? "Refreshing" : "Live"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("campaigns")}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-[10px] font-black text-white shadow-[0_8px_20px_rgba(37,99,235,0.22)] transition hover:bg-blue-700"
-                >
-                  <span className="text-lg leading-none">+</span>
-                  New Campaign
-                </button>
+                <div className="text-[16px] font-black tracking-[-0.04em]">ShareLite</div>
+                <div className="text-[9px] font-medium text-slate-500">Outreach Engine</div>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setLogoutOpen(true)}
+              className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition ${
+                dark
+                  ? "border-white/[0.10] bg-white/[0.02] text-slate-400 hover:bg-white/[0.06] hover:text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Logout
+            </button>
+          </div>
 
-            {(dataError || refreshError) && (
-              <p role="alert" className="mt-4 text-sm text-red-500">
-                {refreshError ?? dataError}
-              </p>
-            )}
+          <nav className="mt-5 space-y-1" aria-label="Workspace navigation">
+            {navItems.map((item) => {
+              const mappedTab =
+                item.id === "geo-analytics"
+                  ? "geo-analytics"
+                  : item.id === "messages"
+                  ? "inbox"
+                  : item.id === "approvals"
+                  ? "reviews"
+                  : item.id;
+              const isActive =
+                item.id !== "billing" && activeTab === mappedTab;
 
-            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                {
-                  label: "Total Leads",
-                  value: counts.total,
-                  icon: "leads",
-                  accent: "blue",
-                  change: changes.total,
-                  text: "this period",
-                },
-                {
-                  label: "Valid Leads",
-                  value: counts.valid,
-                  icon: "approvals",
-                  accent: "green",
-                  change: null,
-                  text: counts.total
-                    ? `${(
-                        (counts.valid / counts.total) *
-                        100
-                      ).toFixed(1)}% of total`
-                    : "0% of total",
-                },
-                {
-                  label: "Invalid Leads",
-                  value: invalidLeadCount,
-                  icon: "x",
-                  accent: "purple",
-                  change: null,
-                  text: counts.total
-                    ? `${(
-                        (invalidLeadCount / counts.total) *
-                        100
-                      ).toFixed(1)}% of total`
-                    : "0% of total",
-                },
-                {
-                  label: "Emails Sent",
-                  value: emailsSentCount,
-                  icon: "campaigns",
-                  accent: "orange",
-                  change: null,
-                  text: "from campaign deliveries",
-                },
-              ].map((stat) => {
-                const accent =
-                  stat.accent === "blue"
-                    ? "text-blue-600 bg-blue-50 ring-blue-100"
-                    : stat.accent === "green"
-                      ? "text-emerald-600 bg-emerald-50 ring-emerald-100"
-                      : stat.accent === "purple"
-                        ? "text-violet-600 bg-violet-50 ring-violet-100"
-                        : stat.accent === "orange"
-                          ? "text-orange-500 bg-orange-50 ring-orange-100"
-                          : "text-slate-500 bg-slate-50 ring-slate-100";
-
+              if (item.id === "billing") {
                 return (
-                  <div
-                    key={stat.label}
-                    className={`relative overflow-hidden rounded-xl border p-3 ${
+                  <Link
+                    key={item.id}
+                    href="/plans"
+                    className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-[12px] font-medium transition ${
                       dark
-                        ? "border-white/[0.08] bg-white/[0.04]"
-                        : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                        ? "text-slate-400 hover:bg-white/[0.05] hover:text-white"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                     }`}
                   >
-                    <div className="flex items-start gap-2.5">
-                      <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-6 ${accent}`}
-                      >
-                        {stat.icon === "x" ? (
-                          <span className="text-base font-black">
-                            ×
-                          </span>
-                        ) : (
-                          <DashboardIcon
-                            name={stat.icon}
-                            size={17}
-                          />
-                        )}
-                      </div>
+                    <span className="w-6 shrink-0 text-slate-400 transition group-hover:text-cyan-300">
+                      <DashboardIcon name={item.icon} />
+                    </span>
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              }
 
-                      <div className="min-w-0">
-                        <div
-                          className={`text-[11px] ${
-                            dark
-                              ? "text-slate-300"
-                              : "text-slate-500"
-                          }`}
-                        >
-                          {stat.label}
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+  console.log("CLICKED TAB:", item.id, "MAPPED:", mappedTab);
+  setActiveTab(mappedTab);
+}}
+                  className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[12px] font-medium transition ${
+                    isActive
+                      ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-[0_10px_28px_rgba(37,99,235,0.22)]"
+                      : dark
+                      ? "text-slate-400 hover:bg-white/[0.05] hover:text-white"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                  }`}
+                >
+                  <span
+                    className={`w-5 shrink-0 ${
+                      isActive ? "text-white" : dark ? "text-slate-400 group-hover:text-cyan-300" : "text-slate-500"
+                    }`}
+                  >
+                    <DashboardIcon name={item.icon} />
+                  </span>
+                  <span className="min-w-0 flex-1">{item.label}</span>
+                  {item.id === "approvals" && pendingApprovals.length > 0 && (
+                    <span className="text-[10px] font-black text-slate-300">
+                      {pendingApprovals.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div
+            className={`mt-4 rounded-xl border p-3 ${
+              dark
+                ? "border-white/10 bg-white/[0.025]"
+                : "border-slate-200 bg-white"
+            }`}
+          >
+            <div className="flex items-center gap-2 text-[12px] font-medium">
+              <span className="text-amber-300">♛</span>
+              <span>Free Trial</span>
+            </div>
+            <div className="mt-1 text-[18px] font-black tracking-[-0.04em]">
+  {permanentFree ? (
+    <>
+      Permanent Free
+      <span className="ml-1 text-[10px] font-medium text-emerald-400">
+        active
+      </span>
+    </>
+  ) : (
+    <>
+      {trialCountdown}
+      <span className="ml-1 text-[10px] font-medium text-slate-400">
+        remaining
+      </span>
+    </>
+  )}
+</div>
+            <div className={`mt-2 h-1.5 overflow-hidden rounded-full ${dark ? "bg-white/10" : "bg-slate-200"}`}>
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
+                style={{
+  width: permanentFree
+    ? "100%"
+    : trialSeconds === null
+    ? "0%"
+    : `${Math.max(
+        0,
+        Math.min(
+          100,
+          (trialSeconds / (12 * 86400)) * 100
+        )
+      )}%`,
+}}
+              />
+            </div>
+            <Link
+              href="/plans"
+              className="mt-2.5 block rounded-lg bg-gradient-to-r from-purple-600 to-fuchsia-600 px-3 py-2.5 text-center text-[11px] font-black text-white transition hover:brightness-110"
+            >
+              Upgrade Now
+            </Link>
+          </div>
+        </div>
+
+        <div className="shrink-0 px-3.5 pb-3 pt-2">
+          <div
+            className={`rounded-xl border p-3 ${
+              dark ? "border-white/[0.07] bg-white/[0.02]" : "border-slate-200 bg-white"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-base font-black text-white">
+                {firstName.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12px] font-bold">{firstName}</div>
+                <div className="truncate text-[10px] text-slate-500">{user.email ?? "Account"}</div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
+      <section className="min-w-0 flex-1">
+        <div className="mx-auto w-full max-w-[1320px] px-3 pb-10 pt-3 md:px-4 lg:px-5">
+          {activeTab === "geo-analytics" && (
+            <GeoAnalytics />
+          )}
+
+          {activeTab === "dashboard" && (
+            <>
+              <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+                <div>
+                  <h1 className="text-[18px] font-black tracking-[-0.04em] md:text-[20px]">
+                    Welcome back, {firstName}! <span className="text-[18px]">👋</span>
+                  </h1>
+                  <p className={`mt-0.5 text-[12px] ${dark ? "text-slate-400" : "text-slate-500"}`}>
+                    Here’s what’s happening with your outreach today.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void refreshDashboard()}
+                    disabled={refreshing}
+                    className={`hidden rounded-lg border px-3 py-2 text-[10px] font-semibold sm:flex sm:items-center sm:gap-2 ${
+                      dark
+                        ? "border-white/15 bg-white/[0.02] text-slate-200 hover:bg-white/[0.05]"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>{refreshing ? "↻" : "⟳"}</span>
+                    {refreshing ? "Refreshing" : "Live"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDark((value) => !value)}
+                    aria-label={`Switch to ${dark ? "light" : "dark"} mode`}
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg border ${
+                      dark ? "border-white/10 text-slate-300" : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    {dark ? "☼" : "☾"}
+                  </button>
+                  <button
+  type="button"
+  onClick={() => setActiveTab("campaigns")}
+  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-[10px] font-black text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition hover:bg-blue-500"
+>
+  <span className="text-lg leading-none">+</span>
+  New Campaign
+</button>
+                </div>
+              </div>
+
+              {(dataError || refreshError) && (
+                <p role="alert" className="mt-4 text-sm text-rose-400">
+                  {refreshError ?? dataError}
+                </p>
+              )}
+
+              <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  {
+                    label: "Total Leads",
+                    value: counts.total,
+                    icon: "leads",
+                    accent: "blue",
+                    change: changes.total,
+                    text: "this period",
+                  },
+                  {
+                    label: "Valid Leads",
+                    value: counts.valid,
+                    icon: "approvals",
+                    accent: "green",
+                    change: null,
+                    text: counts.total ? `${((counts.valid / counts.total) * 100).toFixed(1)}% of total` : "0% of total",
+                  },
+                  {
+                    label: "Invalid Leads",
+                    value: invalidLeadCount,
+                    icon: "x",
+                    accent: "red",
+                    change: null,
+                    text: counts.total ? `${((invalidLeadCount / counts.total) * 100).toFixed(1)}% of total` : "0% of total",
+                  },
+                  {
+                    label: "Emails Sent",
+                    value: emailsSentCount,
+                    icon: "campaigns",
+                    accent: "purple",
+                    change: null,
+                    text: "from campaign deliveries",
+                  },
+                ].map((stat) => {
+                  const accent =
+                    stat.accent === "green"
+                      ? "text-emerald-300 bg-emerald-500/15 ring-emerald-400/10"
+                      : stat.accent === "red"
+                      ? "text-rose-300 bg-rose-500/15 ring-rose-400/10"
+                      : stat.accent === "purple"
+                      ? "text-violet-300 bg-violet-500/15 ring-violet-400/10"
+                      : "text-blue-300 bg-blue-500/15 ring-blue-400/10";
+                  return (
+                    <div
+                      key={stat.label}
+                      className={`relative overflow-hidden rounded-xl border p-3 ${
+                        dark
+                          ? "border-white/[0.08] bg-[#050505]/70"
+                          : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-6 ${accent}`}>
+                          {stat.icon === "x" ? (
+                            <span className="text-base font-black">×</span>
+                          ) : (
+                            <DashboardIcon name={stat.icon} size={17} />
+                          )}
                         </div>
-
-                        <div className="mt-1 text-[16px] font-black tracking-[-0.04em]">
-                          {stat.value.toLocaleString()}
-                        </div>
-
-                        <div className="mt-1 text-[11px] font-semibold text-slate-500">
-                          {stat.change !== null
-                            ? `${
-                                stat.change > 0
-                                  ? "↑ +"
-                                  : stat.change < 0
-                                    ? "↓ "
-                                    : "• "
-                              }${Math.round(
-                                stat.change * 10,
-                              ) / 10}% ${stat.text}`
-                            : stat.text}
+                        <div className="min-w-0">
+                          <div className={`text-[11px] ${dark ? "text-slate-300" : "text-slate-500"}`}>{stat.label}</div>
+                          <div className="mt-1 text-[16px] font-black tracking-[-0.04em]">{stat.value.toLocaleString()}</div>
+                          <div className={`mt-1 text-[11px] font-semibold ${
+                            stat.accent === "red" ? "text-rose-400" : stat.accent === "green" || stat.accent === "purple" || stat.accent === "blue" ? "text-emerald-400" : "text-slate-500"
+                          }`}>
+                            {stat.change !== null
+                              ? `${stat.change > 0 ? "↑ +" : stat.change < 0 ? "↓ " : "• "}${Math.round(stat.change * 10) / 10}% ${stat.text}`
+                              : stat.text}
+                          </div>
                         </div>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,1fr)]">
+                <div
+                  className={`overflow-hidden rounded-xl border ${
+                    dark ? "border-white/[0.08] bg-[#050505]" : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3">
+                    <h2 className="text-[15px] font-black">Outreach Performance</h2>
+                    <div className={`flex items-center gap-1 rounded-lg border p-1 ${dark ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50"}`}>
+                      {(["7d", "30d", "3m"] as AnalyticsRange[]).map((range) => (
+                        <button
+                          key={range}
+                          type="button"
+                          onClick={() => setAnalyticsRange(range)}
+                          className={`rounded-md px-3 py-1.5 text-[10px] font-black ${
+                            analyticsRange === range
+                              ? "bg-blue-600 text-white"
+                              : dark ? "text-slate-500 hover:text-white" : "text-slate-500 hover:text-slate-900"
+                          }`}
+                        >
+                          {range === "3m" ? "3 Months" : range === "30d" ? "30 Days" : "7 Days"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
-              <div
-                className={`h-full overflow-hidden rounded-xl border ${
-                  dark
-                    ? "border-white/[0.08] bg-white/[0.04]"
-                    : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
-                }`}
-              >
-                <div className="flex items-center justify-between px-5 py-3.5">
-                  <h2 className="text-[15px] font-black">
-                    Campaign Status
-                  </h2>
+                  <div className="px-4 pb-3 pt-2">
+                    {!dashboardGraphHasData ? (
+                      <div className={`flex h-[155px] items-center justify-center rounded-lg border border-dashed text-sm ${dark ? "border-white/10 text-slate-500" : "border-slate-200 text-slate-400"}`}>
+                        No campaign email activity yet.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <div
+                          className="h-[180px]"
+                          style={{ minWidth: analyticsRange === "7d" ? "100%" : analyticsRange === "30d" ? "980px" : "1800px" }}
+                        >
+                          <svg
+                            viewBox={`0 0 ${Math.max(1000, dashboardGraphPoints.length * 70)} 290`}
+                            preserveAspectRatio="none"
+                            className="h-full w-full"
+                            role="img"
+                            aria-label="User campaign email performance"
+                          >
+                            {(() => {
+                              const width = Math.max(1000, dashboardGraphPoints.length * 70);
+                              const height = 170;
+                              const left = 44;
+                              const right = 18;
+                              const top = 10;
+                              const bottom = 28;
+                              const plotWidth = width - left - right;
+                              const plotHeight = height - top - bottom;
+                              const max = Math.max(
+                                1,
+                                ...dashboardGraphPoints.flatMap((point) => [point.sent, point.delivered, point.failed])
+                              );
+                              const pointAt = (value: number, index: number) => ({
+                                x: dashboardGraphPoints.length === 1 ? left + plotWidth / 2 : left + (index / (dashboardGraphPoints.length - 1)) * plotWidth,
+                                y: top + plotHeight - (value / max) * plotHeight,
+                              });
+                              const makePath = (key: "sent" | "delivered" | "failed") =>
+                                dashboardGraphPoints
+                                  .map((point, index) => {
+                                    const p = pointAt(point[key], index);
+                                    return `${index === 0 ? "M" : "L"} ${p.x} ${p.y}`;
+                                  })
+                                  .join(" ");
+                              return (
+                                <>
+                                  {[0, 1, 2, 3, 4].map((row) => {
+                                    const y = top + (plotHeight / 4) * row;
+                                    return (
+                                      <line
+                                        key={row}
+                                        x1={left}
+                                        x2={width - right}
+                                        y1={y}
+                                        y2={y}
+                                        stroke={dark ? "rgba(255,255,255,0.07)" : "rgba(15,23,42,0.07)"}
+                                      />
+                                    );
+                                  })}
+                                  <path d={makePath("sent")} fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                                  <path d={makePath("delivered")} fill="none" stroke="#22c55e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                                  <path d={makePath("failed")} fill="none" stroke="#8b5cf6" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                                  {dashboardGraphPoints.map((point, index) => {
+                                    const sent = pointAt(point.sent, index);
+                                    const delivered = pointAt(point.delivered, index);
+                                    const failed = pointAt(point.failed, index);
+                                    return (
+                                      <g key={`${point.date}-${index}`}>
+                                        <circle cx={sent.x} cy={sent.y} r="4" fill={dark ? "#111827" : "#fff"} stroke="#3b82f6" strokeWidth="2" />
+                                        <circle cx={delivered.x} cy={delivered.y} r="4" fill={dark ? "#111827" : "#fff"} stroke="#22c55e" strokeWidth="2" />
+                                        <circle cx={failed.x} cy={failed.y} r="4" fill={dark ? "#111827" : "#fff"} stroke="#8b5cf6" strokeWidth="2" />
+                                      </g>
+                                    );
+                                  })}
+                                  {dashboardGraphPoints.map((point, index) => {
+                                    const x = dashboardGraphPoints.length === 1 ? left + plotWidth / 2 : left + (index / (dashboardGraphPoints.length - 1)) * plotWidth;
+                                    return (
+                                      <text key={`label-${point.date}-${index}`} x={x} y={height - 12} textAnchor="middle" fill={dark ? "#64748b" : "#94a3b8"} fontSize="9">
+                                        {point.date}
+                                      </text>
+                                    );
+                                  })}
+                                </>
+                              );
+                            })()}
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-3 grid grid-cols-3 gap-3 border-t border-white/[0.06] pt-4">
+                      {[
+                        ["#3b82f6", emailsSentCount, "Emails Sent"],
+                        ["#22c55e", deliveryLifecycle.delivered, "Delivered"],
+                        ["#8b5cf6", deliveryLifecycle.failed + deliveryLifecycle.bounced, "Failed / Bounced"],
+                      ].map(([color, value, label]) => (
+                        <div key={String(label)}>
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: String(color) }} />
+                            <span className="text-[10px] text-slate-500">{label}</span>
+                          </div>
+                          <div className="mt-1 text-xl font-black">{Number(value).toLocaleString()}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Campaign Status + Delivery Lifecycle */}
+<div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
+
+  {/* Campaign Status */}
+  <div
+    className={`h-full overflow-hidden rounded-xl border ${
+      dark
+        ? "border-white/[0.08] bg-white/[0.04]"
+        : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+    }`}
+  >
+    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <div>
+        <h2 className="text-[15px] font-black">
+          Campaign Status
+        </h2>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Current status of your campaigns.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setActiveTab("campaigns")}
+        className={`rounded-lg border px-3 py-2 text-[11px] font-semibold transition ${
+          dark
+            ? "border-white/10 text-slate-300 hover:bg-white/[0.04]"
+            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+        }`}
+      >
+        View All
+      </button>
+    </div>
+
+    <div className="flex min-h-[250px] flex-col justify-between p-5">
+
+      <div className="flex flex-col items-center gap-6 sm:flex-row">
+
+        {/* Donut */}
+        <div
+          className="relative h-[150px] w-[150px] shrink-0 rounded-full"
+          style={{
+            background:
+              campaignStatusTotal === 0
+                ? dark
+                  ? "rgba(255,255,255,0.06)"
+                  : "rgba(15,23,42,0.08)"
+                : `conic-gradient(
+                    #10b981 0 ${
+                      (campaignStatus.active /
+                        campaignStatusTotal) *
+                      100
+                    }%,
+                    #3b82f6 ${
+                      (campaignStatus.active /
+                        campaignStatusTotal) *
+                      100
+                    }% ${
+                      ((campaignStatus.active +
+                        campaignStatus.completed) /
+                        campaignStatusTotal) *
+                      100
+                    }%,
+                    #f59e0b ${
+                      ((campaignStatus.active +
+                        campaignStatus.completed) /
+                        campaignStatusTotal) *
+                      100
+                    }% ${
+                      ((campaignStatus.active +
+                        campaignStatus.completed +
+                        campaignStatus.draft) /
+                        campaignStatusTotal) *
+                      100
+                    }%,
+                    #94a3b8 ${
+                      ((campaignStatus.active +
+                        campaignStatus.completed +
+                        campaignStatus.draft) /
+                        campaignStatusTotal) *
+                      100
+                    }% 100%
+                  )`,
+          }}
+        >
+          <div className="absolute inset-[25px] flex flex-col items-center justify-center rounded-full bg-white">
+            <div className="text-3xl font-black text-slate-900">
+              {campaignStatusTotal}
+            </div>
+            <div className="text-[10px] font-semibold text-slate-500">
+              Total
+            </div>
+          </div>
+        </div>
+
+        {/* Status list */}
+        <div className="w-full space-y-3">
+
+          {[
+            ["Active", campaignStatus.active, "#10b981"],
+            ["Completed", campaignStatus.completed, "#3b82f6"],
+            ["Draft", campaignStatus.draft, "#f59e0b"],
+            ["Paused", campaignStatus.paused, "#94a3b8"],
+          ].map(([label, value, color]) => {
+            const percent = campaignStatusTotal
+              ? (Number(value) / campaignStatusTotal) * 100
+              : 0;
+
+            return (
+              <div
+                key={String(label)}
+                className="flex items-center gap-3"
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{
+                    backgroundColor: String(color),
+                  }}
+                />
+
+                <span className="min-w-[75px] text-xs font-semibold text-slate-500">
+                  {label}
+                </span>
+
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${percent}%`,
+                      backgroundColor: String(color),
+                    }}
+                  />
+                </div>
+
+                <span className="w-12 text-right text-xs font-black">
+                  {Number(value)}
+                </span>
+              </div>
+            );
+          })}
+
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+            Campaign activity
+          </span>
+
+          <span className="text-xs font-black text-blue-600">
+            {campaignStatusTotal} campaigns
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* Delivery Lifecycle */}
+  <div
+    id="delivery-lifecycle"
+    className={`h-full rounded-xl border p-5 ${
+      dark
+        ? "border-white/[0.08] bg-white/[0.04]"
+        : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+    }`}
+  >
+    <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+      <div>
+        <div
+          className={`text-[10px] font-bold uppercase tracking-[0.18em] ${
+            dark ? "text-slate-500" : "text-slate-400"
+          }`}
+        >
+          Email infrastructure
+        </div>
+
+        <h2 className="mt-2 text-base font-black">
+          Delivery Lifecycle
+        </h2>
+
+        <p className="mt-1 text-xs text-slate-500">
+          Real delivery status from your campaign emails.
+        </p>
+      </div>
+
+      <div className="text-[10px] font-semibold text-slate-400">
+        User-specific provider data
+      </div>
+    </div>
+
+    <div className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-3">
+
+      {[
+        ["Pending", deliveryLifecycle.pending, "text-blue-500"],
+        ["Sending", deliveryLifecycle.sending, "text-violet-500"],
+        ["Accepted", deliveryLifecycle.accepted, "text-emerald-500"],
+        ["Delivered", deliveryLifecycle.delivered, "text-cyan-500"],
+        ["Bounced", deliveryLifecycle.bounced, "text-orange-500"],
+        ["Failed", deliveryLifecycle.failed, "text-red-500"],
+      ].map(([label, value, textColor]) => (
+        <div
+          key={String(label)}
+          className={`rounded-xl border p-3 ${
+            dark
+              ? "border-white/[0.08] bg-white/[0.03]"
+              : "border-slate-200 bg-slate-50/60"
+          }`}
+        >
+          <div
+            className={`text-[9px] font-bold uppercase tracking-[0.08em] ${textColor}`}
+          >
+            {label}
+          </div>
+
+          <div className="mt-2 text-2xl font-black tracking-[-0.03em]">
+            {Number(value).toLocaleString()}
+          </div>
+        </div>
+      ))}
+
+    </div>
+
+    <div className="mt-4 grid grid-cols-2 gap-3">
+
+      <div
+        className={`rounded-xl border p-4 ${
+          dark
+            ? "border-white/10 bg-white/[0.03]"
+            : "border-slate-200 bg-slate-50/60"
+        }`}
+      >
+        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+          Delivery rate
+        </div>
+
+        <div className="mt-2 text-3xl font-black text-emerald-600">
+          {deliveryLifecycle.deliveryRate}%
+        </div>
+
+        <div className="mt-1 text-[10px] text-slate-400">
+          Successfully delivered
+        </div>
+      </div>
+
+      <div
+        className={`rounded-xl border p-4 ${
+          dark
+            ? "border-white/10 bg-white/[0.03]"
+            : "border-slate-200 bg-slate-50/60"
+        }`}
+      >
+        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+          Bounce rate
+        </div>
+
+        <div className="mt-2 text-3xl font-black text-orange-600">
+          {deliveryLifecycle.bounceRate}%
+        </div>
+
+        <div className="mt-1 text-[10px] text-slate-400">
+          Emails returned by provider
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
 
                 <div className="flex min-h-[220px] flex-col justify-between px-4 py-4 sm:px-5 sm:py-5">
                   <div className="flex flex-col items-center justify-center gap-5 sm:flex-row sm:gap-7">
@@ -2618,1197 +2936,842 @@ async function prepareBulkCampaign() {
                 </div>
               </div>
 
-              <div
-                id="delivery-lifecycle"
-                className={`h-full rounded-xl border p-4 md:p-5 ${
-                  dark
-                    ? "border-white/[0.08] bg-white/[0.04]"
-                    : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
-                }`}
-              >
-                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-                  <div>
-                    <div
-                      className={`text-[10px] font-bold uppercase tracking-[0.18em] ${
-                        dark
-                          ? "text-slate-500"
-                          : "text-slate-400"
-                      }`}
+              <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,1fr)]">
+                <div
+                  className={`overflow-hidden rounded-xl border ${
+                    dark ? "border-white/[0.08] bg-[#050505]" : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+                    <h2 className="text-[15px] font-black">Recent Campaigns</h2>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("campaigns")}
+                      className={`rounded-lg border px-3 py-2 text-[11px] font-semibold ${dark ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600"}`}
                     >
-                      Email infrastructure
-                    </div>
-
-                    <h2 className="mt-2 text-base font-black">
-                      Delivery Lifecycle
-                    </h2>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Real delivery status from your campaign emails.
-                    </p>
+                      View All
+                    </button>
                   </div>
 
-                  <div className="text-xs font-semibold text-slate-500">
-                    User-specific provider data
-                  </div>
-                </div>
-
-                
-                  <div className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-  {[
-    ["Pending", deliveryLifecycle.pending],
-    ["Sending", deliveryLifecycle.sending],
-    ["Accepted", deliveryLifecycle.accepted],
-    ["Delivered", deliveryLifecycle.delivered],
-    ["Bounced", deliveryLifecycle.bounced],
-    ["Failed", deliveryLifecycle.failed],
-  ].map(([label, value], index) => (
-    <div
-      key={String(label)}
-      className={`min-w-0 overflow-hidden rounded-lg border p-3 sm:p-4 ${
-        dark
-          ? "border-white/[0.08] bg-white"
-          : "border-slate-200 bg-white"
-      }`}
-    >
-      <div
-  className={`min-w-0 break-words text-[9px] font-bold uppercase leading-tight tracking-[0.08em] ${
-    index === 0
-      ? "text-blue-500"
-      : index === 1
-      ? "text-violet-500"
-      : index === 2
-      ? "text-emerald-500"
-      : index === 3
-      ? "text-cyan-500"
-      : index === 4
-      ? "text-orange-500"
-      : "text-red-500"
-  }`}
->
-  {label}
-</div>
-
-      <div
-        className={`mt-2 text-2xl font-black tracking-[-0.03em] ${
-          index === 0
-            ? "text-blue-600"
-            : index === 1
-            ? "text-violet-600"
-            : index === 2
-            ? "text-emerald-600"
-            : index === 3
-            ? "text-cyan-600"
-            : index === 4
-            ? "text-orange-600"
-            : "text-red-600"
-        }`}
-      >
-        {value}
-      </div>
-    </div>
-  ))}
-</div>
-
-                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div
-                    className={`rounded-lg border p-4 ${
-                      dark
-                        ? "border-white/10 bg-white/[0.03]"
-                        : "border-slate-200 bg-slate-50/60"
-                    }`}
-                  >
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                      Delivery rate
-                    </div>
-
-                    <div className="mt-2 text-3xl font-black text-emerald-600">
-                      {deliveryLifecycle.deliveryRate}%
-                    </div>
-                  </div>
-
-                  <div
-                    className={`rounded-lg border p-4 ${
-                      dark
-                        ? "border-white/10 bg-white/[0.03]"
-                        : "border-slate-200 bg-slate-50/60"
-                    }`}
-                  >
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                      Bounce rate
-                    </div>
-
-                    <div className="mt-2 text-3xl font-black text-orange-600">
-                      {deliveryLifecycle.bounceRate}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <div
-                className={`h-full overflow-hidden rounded-xl border ${
-                  dark
-                    ? "border-white/[0.08] bg-white/[0.04]"
-                    : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
-                }`}
-              >
-                <div className="flex items-center justify-between px-4 py-3">
-                  <h2 className="text-[15px] font-black">
-                    Recent Campaigns
-                  </h2>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("campaigns")}
-                    className={`rounded-lg border px-3 py-2 text-[11px] font-semibold ${
-                      dark
-                        ? "border-white/10 text-slate-300"
-                        : "border-slate-200 text-slate-600"
-                    }`}
-                  >
-                    View All
-                  </button>
-                </div>
-
-                <div className="divide-y divide-slate-100">
-                  {dashboardCampaignLoading &&
-                  recentCampaigns.length === 0 ? (
-                    <div className="px-5 py-7 text-center text-sm text-slate-500">
-                      Loading your campaigns…
-                    </div>
-                  ) : recentCampaigns.length === 0 ? (
-                    <div className="px-5 py-7 text-center text-sm text-slate-500">
-                      No campaigns yet.
-                    </div>
-                  ) : (
-                    recentCampaigns.map((campaign, index) => {
-                      const deliveryStats =
-                        campaignDeliveryStats(campaign.id);
-
-                      const iconName =
-                        index === 0
-                          ? "campaigns"
-                          : index === 1
-                            ? "messages"
-                            : "leads";
-
-                      const statusClass =
-                        campaign.status === "active"
-                          ? "bg-emerald-50 text-emerald-600"
-                          : campaign.status === "completed"
-                            ? "bg-blue-50 text-blue-600"
+                  <div className="divide-y divide-white/[0.06]">
+                    {dashboardCampaignLoading && recentCampaigns.length === 0 ? (
+                      <div className="px-5 py-7 text-center text-sm text-slate-500">Loading your campaigns…</div>
+                    ) : recentCampaigns.length === 0 ? (
+                      <div className="px-5 py-7 text-center text-sm text-slate-500">No campaigns yet.</div>
+                    ) : (
+                      recentCampaigns.map((campaign, index) => {
+                        const deliveryStats = campaignDeliveryStats(campaign.id);
+                        const iconName = index === 0 ? "campaigns" : index === 1 ? "messages" : "leads";
+                        const statusClass =
+                          campaign.status === "active"
+                            ? "bg-emerald-500/15 text-emerald-300"
                             : campaign.status === "paused"
-                              ? "bg-slate-100 text-slate-500"
-                              : "bg-orange-50 text-orange-600";
-
-                      return (
-                        <div
-                          key={campaign.id}
-                          className="flex items-center gap-3 px-4 py-3"
-                        >
-                          <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                              index === 0
-                                ? "bg-blue-50 text-blue-600"
-                                : index === 1
-                                  ? "bg-violet-50 text-violet-600"
-                                  : "bg-emerald-50 text-emerald-600"
-                            }`}
-                          >
-                            <DashboardIcon name={iconName} />
+                            ? "bg-amber-500/15 text-amber-300"
+                            : campaign.status === "completed"
+                            ? "bg-blue-500/15 text-blue-300"
+                            : "bg-violet-500/15 text-violet-300";
+                        return (
+                          <div key={campaign.id} className="flex items-center gap-3 px-4 py-3">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${index === 0 ? "bg-blue-500/20 text-blue-300" : index === 1 ? "bg-emerald-500/20 text-emerald-300" : "bg-violet-500/20 text-violet-300"}`}>
+                              <DashboardIcon name={iconName} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-bold">{campaign.name}</div>
+                              <div className="mt-1 text-[11px] text-slate-500">
+                                Created on {new Date(campaign.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                              </div>
+                            </div>
+                            <div className="hidden grid-cols-3 gap-5 md:grid">
+                              <div className="text-center"><div className="text-sm font-black">{deliveryStats.sent}</div><div className="text-[10px] text-slate-500">Sent</div></div>
+                              <div className="text-center"><div className="text-sm font-black">{deliveryStats.delivered}</div><div className="text-[10px] text-slate-500">Delivered</div></div>
+                              <div className="text-center"><div className="text-sm font-black">{deliveryStats.failed}</div><div className="text-[10px] text-slate-500">Failed</div></div>
+                            </div>
+                            <span className={`rounded-md px-2.5 py-1 text-[10px] font-bold capitalize ${statusClass}`}>{campaign.status}</span>
+                            <span className="hidden w-14 text-right text-[10px] text-slate-500 sm:block">{relativeTime(campaign.created_at)}</span>
+                            <span className="text-slate-500">⋮</span>
                           </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-bold">
-                              {campaign.name}
-                            </div>
+                <div
+                  className={`overflow-hidden rounded-xl border ${
+                    dark ? "border-white/[0.08] bg-[#050505]" : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+                    <h2 className="text-[15px] font-black">Approval Queue</h2>
+                    <button type="button" onClick={() => setActiveTab("reviews")} className={`rounded-lg border px-3 py-2 text-[11px] font-semibold ${dark ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600"}`}>
+                      View All
+                    </button>
+                  </div>
 
-                            <div className="mt-1 text-[11px] text-slate-500">
-                              Created on{" "}
-                              {new Date(
-                                campaign.created_at,
-                              ).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              })}
+                  <div className="divide-y divide-white/[0.06]">
+                    {pendingApprovals.length === 0 ? (
+                      <div className="px-5 py-7 text-center text-sm text-slate-500">No leads are waiting for review.</div>
+                    ) : (
+                      pendingApprovals.map((lead, index) => {
+                        const initials = lead.name
+                          .split(/\s+/)
+                          .map((part) => part.charAt(0))
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase();
+                        return (
+                          <div key={lead.id} className="flex items-center gap-3 px-4 py-3">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-black text-white ${index === 0 ? "bg-blue-600" : index === 1 ? "bg-emerald-600" : "bg-violet-600"}`}>
+                              {initials || "L"}
                             </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-bold">{lead.name}</div>
+                              <div className="truncate text-[11px] text-slate-500">{lead.email}</div>
+                            </div>
+                            <span className="hidden rounded-full bg-blue-500/15 px-3 py-1 text-[10px] font-semibold text-blue-300 sm:block">Personalization</span>
+                            <span className="w-12 text-right text-[10px] text-slate-500">{relativeTime((lead as Lead & { created_at?: string }).created_at)}</span>
                           </div>
+                        );
+                      })
+                    )}
+                  </div>
 
-                          <div className="hidden grid-cols-3 gap-5 md:grid">
-                            <div className="text-center">
-                              <div className="text-sm font-black">
-                                {deliveryStats.sent}
-                              </div>
-
-                              <div className="text-[10px] text-slate-500">
-                                Sent
-                              </div>
-                            </div>
-
-                            <div className="text-center">
-                              <div className="text-sm font-black">
-                                {deliveryStats.delivered}
-                              </div>
-
-                              <div className="text-[10px] text-slate-500">
-                                delivered
-                              </div>
-                            </div>
-
-                            <div className="text-center">
-                              <div className="text-sm font-black">
-                                {deliveryStats.failed}
-                              </div>
-
-                              <div className="text-[10px] text-slate-500">
-                                Failed
-                              </div>
-                            </div>
-                          </div>
-
-                          <span
-                            className={`rounded-md px-2.5 py-1 text-[10px] font-bold capitalize ${statusClass}`}
-                          >
-                            {campaign.status}
-                          </span>
-
-                          <span className="hidden w-14 text-right text-[10px] text-slate-500 sm:block">
-                            {relativeTime(campaign.created_at)}
-                          </span>
-
-                          <span className="text-slate-400">⋮</span>
-                        </div>
-                      );
-                    })
-                  )}
+                  <div className={`flex items-center justify-between border-t px-5 py-3.5 ${dark ? "border-white/[0.06]" : "border-slate-200"}`}>
+                    <span className="text-xs font-semibold text-blue-400">{pendingApprovals.length} pending approvals</span>
+                    <button type="button" onClick={() => setActiveTab("reviews")} className="text-xs font-semibold text-blue-400">Review All →</button>
+                  </div>
                 </div>
               </div>
+            </>
+          )}
 
-              <div
-                className={`h-full overflow-hidden rounded-xl border ${
-                  dark
-                    ? "border-white/[0.08] bg-white/[0.04]"
-                    : "border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.05)]"
-                }`}
-              >
-                <div className="flex items-center justify-between px-4 py-3">
-                  <h2 className="text-[15px] font-black">
-                    Approval Queue
-                  </h2>
+          {activeTab === "leads" && (
+            <div className="space-y-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="text-xl font-black">Leads</h2>
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("reviews")}
-                    className={`rounded-lg border px-3 py-2 text-[11px] font-semibold ${
+                  <p className="mt-1 text-xs text-slate-400">
+                    Manage your outreach leads.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={csvInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={importCsv}
+                    className="hidden"
+                    id="csv-leads-upload"
+                  />
+
+                  <label
+                    htmlFor="csv-leads-upload"
+                    className={`cursor-pointer rounded-xl border px-3 py-2 text-[11px] font-black transition ${
                       dark
-                        ? "border-white/10 text-slate-300"
-                        : "border-slate-200 text-slate-600"
+                        ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
+                        : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                    } ${
+                      importing
+                        ? "pointer-events-none opacity-60"
+                        : ""
                     }`}
                   >
-                    View All
-                  </button>
-                </div>
-
-                <div className="divide-y divide-slate-100">
-                  {pendingApprovals.length === 0 ? (
-                    <div className="px-5 py-7 text-center text-sm text-slate-500">
-                      No leads are waiting for review.
-                    </div>
-                  ) : (
-                    pendingApprovals.map((lead, index) => {
-                      const initials = lead.name
-                        .split(/\s+/)
-                        .map((part) => part.charAt(0))
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase();
-
-                      return (
-                        <div
-                          key={lead.id}
-                          className="flex items-center gap-3 px-4 py-3"
-                        >
-                          <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-black text-white ${
-                              index === 0
-                                ? "bg-blue-600"
-                                : index === 1
-                                  ? "bg-violet-600"
-                                  : "bg-emerald-600"
-                            }`}
-                          >
-                            {initials || "L"}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-bold">
-                              {lead.name}
-                            </div>
-
-                            <div className="truncate text-[11px] text-slate-500">
-                              {lead.email}
-                            </div>
-                          </div>
-
-                          <span className="hidden rounded-full bg-violet-50 px-3 py-1 text-[10px] font-semibold text-violet-600 sm:block">
-                            Personalization
-                          </span>
-
-                          <span className="w-12 text-right text-[10px] text-slate-500">
-                            {relativeTime(
-                              (
-                                lead as Lead & {
-                                  created_at?: string;
-                                }
-                              ).created_at,
-                            )}
-                          </span>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between px-5 py-3.5">
-                  <span className="text-xs font-semibold text-slate-500">
-                    {pendingApprovals.length} pending approvals
-                  </span>
+                    {importing ? "Importing..." : "Import CSV"}
+                  </label>
 
                   <button
                     type="button"
-                    onClick={() => setActiveTab("reviews")}
-                    className="text-xs font-semibold text-blue-600"
+                    onClick={downloadCsvTemplate}
+                    className={`rounded-xl border px-3 py-2 text-[11px] font-black transition ${
+                      dark
+                        ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
+                        : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                    }`}
                   >
-                    Review All →
+                    Download Template
                   </button>
                 </div>
               </div>
-            </div>
-          </>
-        )}
 
-        {activeTab === "leads" && (
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <h2 className="text-xl font-black">Leads</h2>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Manage your outreach leads.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
+              <form
+                onSubmit={submitLead}
+                className={`grid grid-cols-1 gap-2.5 rounded-2xl border p-4 md:grid-cols-3 ${
+                  dark
+                    ? "border-white/10 bg-white/[0.03]"
+                    : "border-slate-200 bg-white"
+                }`}
+              >
                 <input
-                  ref={csvInputRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  onChange={importCsv}
-                  className="hidden"
-                  id="csv-leads-upload"
+                  required
+                  placeholder="Name"
+                  value={leadForm.name}
+                  onChange={(event) =>
+                    setLeadForm({
+                      ...leadForm,
+                      name: event.target.value,
+                    })
+                  }
+                  className={`rounded-xl border px-3 py-2 text-xs ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
                 />
 
-                <label
-                  htmlFor="csv-leads-upload"
-                  className={`cursor-pointer rounded-xl border px-3 py-2 text-[11px] font-black transition ${
+                <input
+                  required
+                  type="email"
+                  placeholder="Email"
+                  value={leadForm.email}
+                  onChange={(event) =>
+                    setLeadForm({
+                      ...leadForm,
+                      email: event.target.value,
+                    })
+                  }
+                  className={`rounded-xl border px-3 py-2 text-xs ${
                     dark
-                      ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
-                      : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-                  } ${
-                    importing
-                      ? "pointer-events-none opacity-60"
-                      : ""
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
+                />
+
+                <input
+                  required
+                  placeholder="Company"
+                  value={leadForm.company}
+                  onChange={(event) =>
+                    setLeadForm({
+                      ...leadForm,
+                      company: event.target.value,
+                    })
+                  }
+                  className={`rounded-xl border px-3 py-2 text-xs ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
+                />
+
+                <select
+                  value={leadForm.country_code}
+                  onChange={(event) => {
+                    const code = event.target.value;
+                    const countryNames: Record<string, string> = {
+                      IN: "India", US: "United States", GB: "United Kingdom",
+                      CA: "Canada", AU: "Australia", DE: "Germany", FR: "France",
+                      AE: "United Arab Emirates", SG: "Singapore", JP: "Japan",
+                      CN: "China", BR: "Brazil", ES: "Spain", IT: "Italy",
+                      NL: "Netherlands", ZA: "South Africa", NZ: "New Zealand",
+                      RU: "Russia", MX: "Mexico", SA: "Saudi Arabia",
+                    };
+                    setLeadForm({
+                      ...leadForm,
+                      country_code: code,
+                      country_name: countryNames[code] ?? "",
+                    });
+                  }}
+                  className={`rounded-xl border px-3 py-2 text-xs ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
                   }`}
                 >
-                  {importing ? "Importing..." : "Import CSV"}
-                </label>
+                  <option value="">Country</option>
+                  <option value="IN">🇮🇳 India</option>
+                  <option value="US">🇺🇸 United States</option>
+                  <option value="GB">🇬🇧 United Kingdom</option>
+                  <option value="CA">🇨🇦 Canada</option>
+                  <option value="AU">🇦🇺 Australia</option>
+                  <option value="DE">🇩🇪 Germany</option>
+                  <option value="FR">🇫🇷 France</option>
+                  <option value="AE">🇦🇪 United Arab Emirates</option>
+                  <option value="SG">🇸🇬 Singapore</option>
+                  <option value="JP">🇯🇵 Japan</option>
+                  <option value="CN">🇨🇳 China</option>
+                  <option value="BR">🇧🇷 Brazil</option>
+                  <option value="ES">🇪🇸 Spain</option>
+                  <option value="IT">🇮🇹 Italy</option>
+                  <option value="NL">🇳🇱 Netherlands</option>
+                  <option value="ZA">🇿🇦 South Africa</option>
+                  <option value="NZ">🇳🇿 New Zealand</option>
+                  <option value="RU">🇷🇺 Russia</option>
+                  <option value="MX">🇲🇽 Mexico</option>
+                  <option value="SA">🇸🇦 Saudi Arabia</option>
+                </select>
+
+                <input
+                  placeholder="Website"
+                  value={leadForm.website}
+                  onChange={(event) =>
+                    setLeadForm({
+                      ...leadForm,
+                      website: event.target.value,
+                    })
+                  }
+                  className={`rounded-xl border px-3 py-2 text-xs ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
+                />
+
+                <select
+                  value={leadForm.status}
+                  onChange={(event) =>
+                    setLeadForm({
+                      ...leadForm,
+                      status: event.target.value as LeadStatus,
+                    })
+                  }
+                  className={`rounded-xl border px-3 py-2 text-xs ${
+                    dark
+                      ? "border-white/10 bg-slate-900 text-white"
+                      : "border-slate-200 bg-white text-slate-900"
+                  }`}
+                >
+                  <option value="new">New</option>
+                  <option value="valid">Valid</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="converted">Converted</option>
+                </select>
 
                 <button
-                  type="button"
-                  onClick={downloadCsvTemplate}
-                  className={`rounded-xl border px-3 py-2 text-[11px] font-black transition ${
-                    dark
-                      ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
-                      : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-                  }`}
+                  type="submit"
+                  disabled={pending}
+                  className="rounded-xl bg-cyan-500 px-3 py-2.5 text-xs font-black text-white disabled:opacity-60"
                 >
-                  Download Template
+                  {pending
+                    ? "Saving..."
+                    : editingId
+                    ? "Save Lead"
+                    : "Add Lead"}
                 </button>
-              </div>
-            </div>
+              </form>
 
-            <form
-              onSubmit={submitLead}
-              className={`grid grid-cols-1 gap-2.5 rounded-2xl border p-4 md:grid-cols-3 ${
-                dark
-                  ? "border-white/10 bg-white/[0.03]"
-                  : "border-slate-200 bg-white"
-              }`}
-            >
-              <input
-                required
-                placeholder="Name"
-                value={leadForm.name}
-                onChange={(event) =>
-                  setLeadForm({
-                    ...leadForm,
-                    name: event.target.value,
-                  })
-                }
-                className={`rounded-xl border px-3 py-2 text-xs ${
-                  dark
-                    ? "border-white/10 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-900"
-                }`}
-              />
+              {leadError && (
+                <p role="alert" className="text-xs text-rose-400">
+                  {leadError}
+                </p>
+              )}
 
-              <input
-                required
-                type="email"
-                placeholder="Email"
-                value={leadForm.email}
-                onChange={(event) =>
-                  setLeadForm({
-                    ...leadForm,
-                    email: event.target.value,
-                  })
-                }
-                className={`rounded-xl border px-3 py-2 text-xs ${
-                  dark
-                    ? "border-white/10 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-900"
-                }`}
-              />
+              {importSummary && (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+                  {importSummary}
+                </div>
+              )}
+              <div
+  className={`rounded-2xl border p-4 ${
+    dark
+      ? "border-purple-500/20 bg-purple-500/[0.05]"
+      : "border-slate-200 bg-white"
+  }`}
+>
+  <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h3 className="text-[13px] font-black">
+          Bulk Outreach
+        </h3>
 
-              <input
-                required
-                placeholder="Company"
-                value={leadForm.company}
-                onChange={(event) =>
-                  setLeadForm({
-                    ...leadForm,
-                    company: event.target.value,
-                  })
-                }
-                className={`rounded-xl border px-3 py-2 text-xs ${
-                  dark
-                    ? "border-white/10 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-900"
-                }`}
-              />
+        <p className="text-[11px] text-slate-500">
+          Select leads and prepare them for a campaign.
+        </p>
+      </div>
 
-               <select
-  value={leadForm.country_code}
+      <span className="text-xs font-bold text-cyan-400">
+        {selectedLeadIds.length} selected
+      </span>
+    </div>
+
+    <select
+      value={selectedCampaignId}
+      onChange={(event) =>
+        setSelectedCampaignId(event.target.value)
+      }
+      className={`w-full rounded-xl border px-3 py-2 text-xs ${
+        dark
+          ? "border-white/10 bg-slate-900 text-white"
+          : "border-slate-200 bg-white text-slate-900"
+      }`}
+    >
+      <option value="">Select campaign</option>
+
+      {campaigns.map((campaign) => (
+        <option
+          key={campaign.id}
+          value={campaign.id}
+          disabled={!campaign.template_id}
+        >
+          {campaign.name}
+          {!campaign.template_id
+            ? " — template required"
+            : ""}
+        </option>
+      ))}
+    </select>
+
+    <select
+  value={selectedInboxId ?? ""}
   onChange={(event) => {
-    const code = event.target.value;
-
-    const countryNames: Record<string, string> = {
-      IN: "India",
-      US: "United States",
-      GB: "United Kingdom",
-      CA: "Canada",
-      AU: "Australia",
-      DE: "Germany",
-      FR: "France",
-      AE: "United Arab Emirates",
-      SG: "Singapore",
-      JP: "Japan",
-      CN: "China",
-      BR: "Brazil",
-      ES: "Spain",
-      IT: "Italy",
-      NL: "Netherlands",
-      ZA: "South Africa",
-      NZ: "New Zealand",
-      RU: "Russia",
-      MX: "Mexico",
-      SA: "Saudi Arabia",
-    };
-
-    setLeadForm({
-      ...leadForm,
-      country_code: code,
-      country_name: countryNames[code] ?? "",
-    });
+    setSelectedInboxId(event.target.value || null);
   }}
-  className={`rounded-xl border px-3 py-3 text-sm ${
+  className={`w-full rounded-xl border px-3 py-2 text-xs ${
     dark
       ? "border-white/10 bg-slate-900 text-white"
       : "border-slate-200 bg-white text-slate-900"
   }`}
 >
-  <option value="">Country</option>
-  <option value="IN">🇮🇳 India</option>
-  <option value="US">🇺🇸 United States</option>
-  <option value="GB">🇬🇧 United Kingdom</option>
-  <option value="CA">🇨🇦 Canada</option>
-  <option value="AU">🇦🇺 Australia</option>
-  <option value="DE">🇩🇪 Germany</option>
-  <option value="FR">🇫🇷 France</option>
-  <option value="AE">🇦🇪 United Arab Emirates</option>
-  <option value="SG">🇸🇬 Singapore</option>
-  <option value="JP">🇯🇵 Japan</option>
-  <option value="CN">🇨🇳 China</option>
-  <option value="BR">🇧🇷 Brazil</option>
-  <option value="ES">🇪🇸 Spain</option>
-  <option value="IT">🇮🇹 Italy</option>
-  <option value="NL">🇳🇱 Netherlands</option>
-  <option value="ZA">🇿🇦 South Africa</option>
-  <option value="NZ">🇳🇿 New Zealand</option>
-  <option value="RU">🇷🇺 Russia</option>
-  <option value="MX">🇲🇽 Mexico</option>
-  <option value="SA">🇸🇦 Saudi Arabia</option>
+  <option value="">Select sending Gmail</option>
+
+  {connectedInboxes
+    .filter(
+      (inbox) =>
+        inbox.provider === "google" &&
+        inbox.status === "active"
+    )
+    .map((inbox) => (
+      <option key={inbox.id} value={inbox.id}>
+        {inbox.email}
+      </option>
+    ))}
 </select>
 
-              <input
-                placeholder="Website"
-                value={leadForm.website}
-                onChange={(event) =>
-                  setLeadForm({
-                    ...leadForm,
-                    website: event.target.value,
-                  })
-                }
-                className={`rounded-xl border px-3 py-2 text-xs ${
-                  dark
-                    ? "border-white/10 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-900"
-                }`}
-              />
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onClick={selectAllLeads}
+        disabled={!leadRows.length}
+        className={`rounded-xl border px-3 py-1.5 text-[11px] font-black ${
+          dark
+            ? "border-white/10 text-white hover:bg-white/5"
+            : "border-slate-200 text-slate-800 hover:bg-slate-50"
+        }`}
+      >
+        Select All
+      </button>
 
-              <select
-                value={leadForm.status}
-                onChange={(event) =>
-                  setLeadForm({
-                    ...leadForm,
-                    status: event.target.value as LeadStatus,
-                  })
-                }
-                className={`rounded-xl border px-3 py-2 text-xs ${
-                  dark
-                    ? "border-white/10 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-900"
-                }`}
-              >
-                <option value="new">New</option>
-                <option value="valid">Valid</option>
-                <option value="contacted">Contacted</option>
-                <option value="converted">Converted</option>
-              </select>
+      <button
+        type="button"
+        onClick={clearSelectedLeads}
+        disabled={!selectedLeadIds.length}
+        className={`rounded-xl border px-3 py-1.5 text-[11px] font-black ${
+          dark
+            ? "border-white/10 text-slate-300 hover:bg-white/5"
+            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+        }`}
+      >
+        Clear
+      </button>
 
-              <button
-                type="submit"
-                disabled={pending}
-                className="rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-black text-white transition hover:bg-blue-700 disabled:opacity-60"
-              >
-                {pending
-                  ? "Saving..."
-                  : editingId
-                    ? "Save Lead"
-                    : "Add Lead"}
-              </button>
-            </form>
+      <button
+        type="button"
+        onClick={() => void prepareBulkCampaign()}
+        disabled={
+          bulkOutreachLoading ||
+          !selectedCampaignId ||
+          !selectedLeadIds.length
+        }
+        className="rounded-xl bg-purple-600 px-3 py-1.5 text-[11px] font-black text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {bulkOutreachLoading
+          ? "Preparing..."
+          : "Prepare Campaign"}
+      </button>
+      <button
+  type="button"
+  onClick={sendPreparedDelivery}
+  disabled={
+  sendDeliveryLoading ||
+  preparedDeliveryIds.length === 0 ||
+  !selectedInboxId
+}
+  className="rounded-xl bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+>
+  {sendDeliveryLoading ? "Sending..." : "Send Prepared Email"}
+</button>
+    </div>
 
-            {leadError && (
-              <p role="alert" className="text-xs text-red-500">
-                {leadError}
-              </p>
-            )}
+    {campaigns.length === 0 && (
+      <p className="text-xs text-amber-400">
+        Create a campaign with an outreach template first.
+      </p>
+    )}
 
-            {importSummary && (
-              <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-blue-600">
-                {importSummary}
-              </div>
-            )}
+    {bulkOutreachError && (
+      <p role="alert" className="text-xs text-rose-400">
+        {bulkOutreachError}
+      </p>
+    )}
 
-            <div
-              className={`rounded-2xl border p-4 ${
-                dark
-                  ? "border-white/10 bg-white/[0.03]"
-                  : "border-slate-200 bg-white"
-              }`}
-            >
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-[13px] font-black">
-                      Bulk Outreach
-                    </h3>
-
-                    <p className="text-[11px] text-slate-500">
-                      Select leads and prepare them for a campaign.
-                    </p>
+    {bulkOutreachMessage && (
+      <p className="text-xs text-emerald-400">
+        {bulkOutreachMessage}
+      </p>
+    )}
+  </div>
+</div>
+              <div className="space-y-3">
+                {leadRows.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 p-6 text-sm text-slate-400">
+                    No leads yet.
                   </div>
-
-                  <span className="text-xs font-bold text-slate-500">
-                    {selectedLeadIds.length} selected
-                  </span>
-                </div>
-
-                <select
-                  value={selectedCampaignId}
-                  onChange={(event) =>
-                    setSelectedCampaignId(event.target.value)
-                  }
-                  className={`w-full rounded-xl border px-3 py-2 text-xs ${
-                    dark
-                      ? "border-white/10 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-900"
-                  }`}
-                >
-                  <option value="">Select campaign</option>
-
-                  {campaigns.map((campaign) => (
-                    <option
-                      key={campaign.id}
-                      value={campaign.id}
-                      disabled={!campaign.template_id}
+                ) : (
+                  leadRows.map((lead) => (
+                    <div
+  key={lead.id}
+  className={`relative rounded-xl border p-3 ${
+                        dark
+                          ? "border-white/10 bg-white/[0.03]"
+                          : "border-slate-200 bg-white"
+                      }`}
+                      
                     >
-                      {campaign.name}
-                      {!campaign.template_id
-                        ? " — template required"
-                        : ""}
-                    </option>
-                  ))}
-                </select>
+                      <input
+  type="checkbox"
+  checked={selectedLeadIds.includes(lead.id)}
+  onChange={() => toggleLeadSelection(lead.id)}
+  aria-label={`Select ${lead.name} for bulk outreach`}
+  className="absolute left-4 top-4 h-4 w-4 cursor-pointer accent-cyan-500"
+/>
+                       <div className="flex flex-col justify-between gap-3 pl-7 md:flex-row">
+                        <div>
+                          <div className="text-sm font-bold">{lead.name}</div>
 
-                <select
-                  value={selectedInboxId ?? ""}
-                  onChange={(event) =>
-                    setSelectedInboxId(
-                      event.target.value || null,
-                    )
-                  }
-                  className={`w-full rounded-xl border px-3 py-2 text-xs ${
-                    dark
-                      ? "border-white/10 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-900"
-                  }`}
-                >
-                  <option value="">Select sending Gmail</option>
-
-                  {connectedInboxes
-                    .filter(
-                      (inbox) =>
-                        inbox.provider === "google" &&
-                        inbox.status === "active",
-                    )
-                    .map((inbox) => (
-                      <option
-                        key={inbox.id}
-                        value={inbox.id}
-                      >
-                        {inbox.email}
-                      </option>
-                    ))}
-                </select>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={selectAllLeads}
-                    disabled={!leadRows.length}
-                    className={`rounded-xl border px-3 py-1.5 text-[11px] font-black ${
-                      dark
-                        ? "border-white/10 text-white hover:bg-white/5"
-                        : "border-slate-200 text-slate-800 hover:bg-slate-50"
-                    }`}
-                  >
-                    Select All
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={clearSelectedLeads}
-                    disabled={!selectedLeadIds.length}
-                    className={`rounded-xl border px-3 py-1.5 text-[11px] font-black ${
-                      dark
-                        ? "border-white/10 text-slate-300 hover:bg-white/5"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Clear
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void prepareBulkCampaign()
-                    }
-                    disabled={
-                      bulkOutreachLoading ||
-                      !selectedCampaignId ||
-                      !selectedLeadIds.length
-                    }
-                    className="rounded-xl bg-blue-600 px-3 py-1.5 text-[11px] font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {bulkOutreachLoading
-                      ? "Preparing..."
-                      : "Prepare Campaign"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={sendPrepagrayDelivery}
-                    disabled={
-                      sendDeliveryLoading ||
-                      prepagrayDeliveryIds.length === 0 ||
-                      !selectedInboxId
-                    }
-                    className="rounded-xl bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {sendDeliveryLoading
-                      ? "Sending..."
-                      : "Send Prepared Email"}
-                  </button>
-                </div>
-
-                {campaigns.length === 0 && (
-                  <p className="text-xs text-slate-500">
-                    Create a campaign with an outreach template first.
-                  </p>
-                )}
-
-                {bulkOutreachError && (
-                  <p
-                    role="alert"
-                    className="text-xs text-red-500"
-                  >
-                    {bulkOutreachError}
-                  </p>
-                )}
-
-                {bulkOutreachMessage && (
-                  <p className="text-xs text-emerald-600">
-                    {bulkOutreachMessage}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {leadRows.length === 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-400">
-                  No leads yet.
-                </div>
-              ) : (
-                leadRows.map((lead) => (
-                  <div
-                    key={lead.id}
-                    className={`relative rounded-xl border p-3 ${
-                      dark
-                        ? "border-white/10 bg-white/[0.03]"
-                        : "border-slate-200 bg-white"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedLeadIds.includes(
-                        lead.id,
-                      )}
-                      onChange={() =>
-                        toggleLeadSelection(lead.id)
-                      }
-                      aria-label={`Select ${lead.name} for bulk outreach`}
-                      className="absolute left-4 top-4 h-4 w-4 cursor-pointer accent-blue-600"
-                    />
-
-                    <div className="flex flex-col justify-between gap-3 pl-7 md:flex-row">
-                      <div>
-                        <div className="text-sm font-bold">
-                          {lead.name}
-                        </div>
-
-                        <div className="text-xs text-slate-400">
-                          {lead.email}
-                          {lead.company
-                            ? ` · ${lead.company}`
-                            : ""}
-                        </div>
-
-                        <div className="mt-0.5 text-[11px] capitalize text-slate-500">
-                          Status: {lead.status}
-                        </div>
-
-                        {lead.validation_status && (
-                          <div className="mt-0.5 text-[11px] text-blue-600">
-                            Email: {lead.validation_status}
+                          <div className="text-xs text-slate-400">
+                            {lead.email}
+                            {lead.company
+                              ? ` · ${lead.company}`
+                              : ""}
                           </div>
-                        )}
-                      </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => editLead(lead)}
-                          className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-600"
-                        >
-                          Edit
-                        </button>
+                          <div className="mt-0.5 text-[11px] capitalize text-slate-500">
+                            Status: {lead.status}
+                          </div>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void validateLead(lead.id)
-                          }
-                          className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-blue-700"
-                        >
-                          Validate
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void generateAiMessage(lead.id)
-                          }
-                          disabled={
-                            aiLoadingId === lead.id
-                          }
-                          className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {aiLoadingId === lead.id
-                            ? "Generating..."
-                            : "AI Message"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void removeLead(lead.id)
-                          }
-                          className="rounded-lg bg-red-50 px-2.5 py-1.5 text-[11px] font-bold text-red-600"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-
-                    {aiMessages[lead.id] && (
-                      <div className="mt-3 space-y-2.5">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <label
-                            htmlFor={`ai-subject-${lead.id}`}
-                            className="text-[10px] font-black uppercase tracking-wide text-slate-400"
-                          >
-                            AI Personalized Email
-                          </label>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void copyAiMessage(lead.id)
-                            }
-                            className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-[11px] font-black text-white transition hover:bg-blue-700"
-                          >
-                            Copy Email
-                          </button>
+                          {lead.validation_status && (
+                            <div className="mt-0.5 text-[11px] text-cyan-400">
+                              Email: {lead.validation_status}
+                            </div>
+                          )}
                         </div>
 
-                        <input
-                          id={`ai-subject-${lead.id}`}
-                          value={aiSubjects[lead.id] ?? ""}
-                          onChange={(event) =>
-                            setAiSubjects((current) => ({
-                              ...current,
-                              [lead.id]:
-                                event.target.value,
-                            }))
-                          }
-                          placeholder="AI-generated subject"
-                          className={`w-full rounded-xl border px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 ${
-                            dark
-                              ? "border-white/10 bg-slate-900 text-white"
-                              : "border-slate-200 bg-white text-slate-900"
-                          }`}
-                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => editLead(lead)}
+                            className="rounded-lg bg-blue-500/10 px-2.5 py-1.5 text-[11px] font-bold text-blue-400"
+                          >
+                            Edit
+                          </button>
 
-                        <textarea
-                          id={`ai-message-${lead.id}`}
-                          value={aiMessages[lead.id]}
-                          onChange={(event) =>
-                            setAiMessages((current) => ({
-                              ...current,
-                              [lead.id]:
-                                event.target.value,
-                            }))
-                          }
-                          rows={6}
-                          spellCheck={false}
-                          aria-label="Generated AI outreach message"
-                          className={`w-full resize-y rounded-xl border p-3 text-xs leading-5 whitespace-pre-wrap outline-none focus:ring-2 focus:ring-blue-500 ${
-                            dark
-                              ? "border-white/10 bg-slate-900 text-slate-100"
-                              : "border-slate-200 bg-white text-slate-900"
-                          }`}
-                        />
-
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-[11px] text-slate-500">
-                            Review and edit the AI email before using it.
-                          </p>
+                          <button
+                            type="button"
+                            onClick={() => void validateLead(lead.id)}
+                            className="rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[11px] font-bold text-white"
+                          >
+                            Validate
+                          </button>
 
                           <button
                             type="button"
                             onClick={() =>
-                              void generateAiMessage(
-                                lead.id,
-                              )
+                              void generateAiMessage(lead.id)
                             }
-                            disabled={
-                              aiLoadingId === lead.id
-                            }
-                            className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={aiLoadingId === lead.id}
+                            className="rounded-lg bg-purple-500 px-2.5 py-1.5 text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {aiLoadingId === lead.id
                               ? "Generating..."
-                              : "Regenerate"}
+                              : "AI Message"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void removeLead(lead.id)}
+                            className="rounded-lg bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-bold text-rose-400"
+                          >
+                            Delete
                           </button>
                         </div>
                       </div>
-                    )}
 
-                    <div
-                      className={`mt-3 rounded-xl border p-3 ${
-                        dark
-                          ? "border-white/10 bg-white/[0.02]"
-                          : "border-slate-200 bg-slate-50"
-                      }`}
-                    >
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="text-[13px] font-black">
-                            Outreach Message
-                          </h4>
+                      {aiMessages[lead.id] && (
+  <div className="mt-3 space-y-2.5">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <label
+        htmlFor={`ai-subject-${lead.id}`}
+        className="text-[10px] font-black uppercase tracking-wide text-slate-400"
+      >
+        AI Personalized Email
+      </label>
 
-                          <p className="mt-1 text-[11px] text-slate-500">
-                            Create a personalized message from a saved template.
-                          </p>
-                        </div>
+      <button
+        type="button"
+        onClick={() => void copyAiMessage(lead.id)}
+        className="rounded-lg bg-emerald-500 px-2.5 py-1.5 text-[11px] font-black text-white transition hover:bg-emerald-600"
+      >
+        Copy Email
+      </button>
+    </div>
 
-                        {templatesLoading ? (
-                          <p className="text-[11px] text-slate-500">
-                            Loading templates...
-                          </p>
-                        ) : outreachTemplates.length === 0 ? (
-                          <p className="text-xs text-slate-500">
-                            No templates found. Create one in Templates first.
-                          </p>
-                        ) : (
-                          <>
-                            <select
-                              value={
-                                selectedTemplateIds[
-                                  lead.id
-                                ] ?? ""
-                              }
-                              onChange={(event) =>
-                                applyOutreachTemplate(
-                                  lead,
-                                  event.target.value,
-                                )
-                              }
-                              className={`w-full rounded-xl border px-3 py-2 text-xs ${
-                                dark
-                                  ? "border-white/10 bg-slate-900 text-white"
-                                  : "border-slate-200 bg-white text-slate-900"
-                              }`}
-                            >
-                              <option value="">
-                                Select an outreach template
-                              </option>
+    <input
+      id={`ai-subject-${lead.id}`}
+      value={aiSubjects[lead.id] ?? ""}
+      onChange={(event) =>
+        setAiSubjects((current) => ({
+          ...current,
+          [lead.id]: event.target.value,
+        }))
+      }
+      placeholder="AI-generated subject"
+      className={`w-full rounded-xl border px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-purple-500 ${
+        dark
+          ? "border-white/10 bg-slate-900 text-white"
+          : "border-slate-200 bg-white text-slate-900"
+      }`}
+    />
 
-                              {outreachTemplates.map(
-                                (template) => (
-                                  <option
-                                    key={template.id}
-                                    value={template.id}
-                                  >
-                                    {template.name}
-                                  </option>
-                                ),
-                              )}
-                            </select>
+    <textarea
+      id={`ai-message-${lead.id}`}
+      value={aiMessages[lead.id]}
+      onChange={(event) =>
+        setAiMessages((current) => ({
+          ...current,
+          [lead.id]: event.target.value,
+        }))
+      }
+      rows={6}
+      spellCheck={false}
+      aria-label="Generated AI outreach message"
+      className={`w-full resize-y rounded-xl border p-3 text-xs leading-5 whitespace-pre-wrap outline-none focus:ring-2 focus:ring-purple-500 ${
+        dark
+          ? "border-white/10 bg-slate-900 text-slate-100"
+          : "border-slate-200 bg-white text-slate-900"
+      }`}
+    />
 
-                            {outreachSubjects[
-                              lead.id
-                            ] !== undefined && (
-                              <input
-                                value={
-                                  outreachSubjects[
-                                    lead.id
-                                  ]
-                                }
-                                onChange={(event) =>
-                                  setOutreachSubjects(
-                                    (current) => ({
-                                      ...current,
-                                      [lead.id]:
-                                        event.target.value,
-                                    }),
-                                  )
-                                }
-                                placeholder="Email subject"
-                                className={`w-full rounded-xl border px-3 py-2 text-xs ${
-                                  dark
-                                    ? "border-white/10 bg-slate-900 text-white"
-                                    : "border-slate-200 bg-white text-slate-900"
-                                }`}
-                              />
-                            )}
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-[11px] text-slate-500">
+        Review and edit the AI email before using it.
+      </p>
 
-                            {outreachMessages[
-                              lead.id
-                            ] !== undefined && (
-                              <>
-                                <textarea
-                                  value={
-                                    outreachMessages[
-                                      lead.id
-                                    ]
-                                  }
-                                  onChange={(event) =>
-                                    setOutreachMessages(
-                                      (current) => ({
-                                        ...current,
-                                        [lead.id]:
-                                          event.target.value,
-                                      }),
-                                    )
-                                  }
-                                  rows={6}
-                                  className={`w-full resize-y rounded-xl border p-3 text-xs leading-5 outline-none ${
-                                    dark
-                                      ? "border-white/10 bg-slate-900 text-slate-100"
-                                      : "border-slate-200 bg-white text-slate-900"
-                                  }`}
-                                />
+      <button
+        type="button"
+        onClick={() => void generateAiMessage(lead.id)}
+        disabled={aiLoadingId === lead.id}
+        className="rounded-lg bg-purple-500 px-3 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {aiLoadingId === lead.id
+          ? "Generating..."
+          : "Regenerate"}
+      </button>
+    </div>
+  </div>
+)}
+                      <div
+  className={`mt-3 rounded-xl border p-3 ${
+    dark
+      ? "border-white/10 bg-white/[0.02]"
+      : "border-slate-200 bg-slate-50"
+  }`}
+>
+  <div className="space-y-3">
+    <div>
+      <h4 className="text-[13px] font-black">
+        Outreach Message
+      </h4>
 
-                                <div className="flex justify-end">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void copyOutreachMessage(
-                                        lead.id,
-                                      )
-                                    }
-                                    className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-black text-white transition hover:bg-blue-700"
-                                  >
-                                    Copy Message
-                                  </button>
-                                </div>
-                              </>
-                            )}
-                          </>
-                        )}
+      <p className="mt-1 text-[11px] text-slate-500">
+        Create a personalized message from a saved template.
+      </p>
+    </div>
 
-                        {templatesError && (
-                          <p className="text-xs text-red-500">
-                            {templatesError}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+    {templatesLoading ? (
+      <p className="text-[11px] text-slate-500">
+        Loading templates...
+      </p>
+    ) : outreachTemplates.length === 0 ? (
+      <p className="text-xs text-amber-400">
+        No templates found. Create one in Templates first.
+      </p>
+    ) : (
+      <>
+        <select
+          value={selectedTemplateIds[lead.id] ?? ""}
+          onChange={(event) =>
+            applyOutreachTemplate(
+              lead,
+              event.target.value
+            )
+          }
+          className={`w-full rounded-xl border px-3 py-2 text-xs ${
+            dark
+              ? "border-white/10 bg-slate-900 text-white"
+              : "border-slate-200 bg-white text-slate-900"
+          }`}
+        >
+          <option value="">
+            Select an outreach template
+          </option>
 
-        {activeTab === "reviews" && (
-          <ReviewsPanel dark={dark} />
-        )}
+          {outreachTemplates.map((template) => (
+            <option
+              key={template.id}
+              value={template.id}
+            >
+              {template.name}
+            </option>
+          ))}
+        </select>
 
-        {activeTab === "campaigns" && (
-          <WorkspacePanels
-            activeTab="campaigns"
-            user={user}
-            dark={dark}
-            onInboxBack={() =>
-              setActiveTab("dashboard")
+        {outreachSubjects[lead.id] !== undefined && (
+          <input
+            value={outreachSubjects[lead.id]}
+            onChange={(event) =>
+              setOutreachSubjects((current) => ({
+                ...current,
+                [lead.id]: event.target.value,
+              }))
             }
-            onInboxSelect={(inboxId) => {
-              setSelectedInboxId(inboxId);
-            }}
+            placeholder="Email subject"
+            className={`w-full rounded-xl border px-3 py-2 text-xs ${
+              dark
+                ? "border-white/10 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-900"
+            }`}
           />
         )}
 
-        {activeTab !== "dashboard" &&
-          activeTab !== "leads" &&
-          activeTab !== "reviews" &&
-          activeTab !== "campaigns" && (
-            <WorkspacePanels
-              activeTab={activeTab}
-              user={user}
-              dark={dark}
-              onInboxBack={() =>
-                setActiveTab("dashboard")
+        {outreachMessages[lead.id] !== undefined && (
+          <>
+            <textarea
+              value={outreachMessages[lead.id]}
+              onChange={(event) =>
+                setOutreachMessages((current) => ({
+                  ...current,
+                  [lead.id]: event.target.value,
+                }))
               }
-              onInboxSelect={(inboxId) => {
-                setSelectedInboxId(inboxId);
-              }}
-            />
-          )}
-      </div>
-    </section>
-
-    {logoutOpen && (
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="logout-title"
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-5"
-        onClick={() => setLogoutOpen(false)}
-      >
-        <div
-          className={`w-full max-w-sm rounded-2xl border p-6 ${
-            dark
-              ? "border-white/10 bg-slate-950"
-              : "border-slate-200 bg-white"
-          }`}
-          onClick={(event) =>
-            event.stopPropagation()
-          }
-        >
-          <h2
-            id="logout-title"
-            className="text-lg font-black"
-          >
-            Are you sure you want to log out?
-          </h2>
-
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                setLogoutOpen(false)
-              }
-              className={`rounded-xl border px-4 py-2 text-sm font-bold ${
+              rows={6}
+              className={`w-full resize-y rounded-xl border p-3 text-xs leading-5 outline-none ${
                 dark
-                  ? "border-white/10 text-white"
-                  : "border-slate-200 text-slate-800"
+                  ? "border-white/10 bg-slate-900 text-slate-100"
+                  : "border-slate-200 bg-white text-slate-900"
               }`}
-            >
-              Cancel
-            </button>
+            />
 
-            <form
-              action="/api/auth/logout"
-              method="post"
-            >
+            <div className="flex justify-end">
               <button
-                type="submit"
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white transition hover:bg-blue-700"
+                type="button"
+                onClick={() =>
+                  void copyOutreachMessage(lead.id)
+                }
+                className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-600"
               >
-                Logout
+                Copy Message
               </button>
-            </form>
+            </div>
+          </>
+        )}
+      </>
+    )}
+
+    {templatesError && (
+      <p className="text-xs text-rose-400">
+        {templatesError}
+      </p>
+    )}
+  </div>
+</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+          
+          {activeTab === "reviews" && <ReviewsPanel dark={dark} />}
+
+{activeTab === "campaigns" && (
+  <WorkspacePanels
+    activeTab="campaigns"
+    user={user}
+    dark={dark}
+    onInboxBack={() => setActiveTab("dashboard")}
+    onInboxSelect={(inboxId) => {
+      setSelectedInboxId(inboxId);
+    }}
+  />
+)}
+
+{activeTab !== "dashboard" &&
+  activeTab !== "leads" &&
+  activeTab !== "geo-analytics" &&
+  activeTab !== "reviews" &&
+  activeTab !== "campaigns" && (
+    <WorkspacePanels
+      activeTab={activeTab}
+      user={user}
+      dark={dark}
+      onInboxBack={() => setActiveTab("dashboard")}
+      onInboxSelect={(inboxId) => {
+        setSelectedInboxId(inboxId);
+      }}
+    />
+  )}
+
+
+        </div>
+      </section>
+        
+      {logoutOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-5"
+          onClick={() => setLogoutOpen(false)}
+        >
+          <div
+            className={`w-full max-w-sm rounded-2xl border p-6 ${
+              dark
+                ? "border-white/10 bg-[#050505]"
+                : "border-slate-200 bg-white"
+            }`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="logout-title" className="text-lg font-black">
+              Are you sure you want to log out?
+            </h2>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setLogoutOpen(false)}
+                className={`rounded-xl border px-4 py-2 text-sm font-bold ${
+                  dark
+                    ? "border-white/10 text-white"
+                    : "border-slate-200 text-slate-800"
+                }`}
+              >
+                Cancel
+              </button>
+
+              <form action="/api/auth/logout" method="post">
+                <button
+                  type="submit"
+                  className="rounded-xl bg-rose-500 px-4 py-2 text-sm font-black text-white"
+                >
+                  Logout
+                </button>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-  </main>
-);
+      )}
+    </main>
+  );
 }
